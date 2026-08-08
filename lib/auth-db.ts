@@ -11,7 +11,14 @@ export interface DbAuthUser {
 }
 
 export async function getAuthUserByEmail(email: string): Promise<DbAuthUser | null> {
-  return execProcOne<DbAuthUser>("sp_GetUserByEmail", { Email: email.toLowerCase().trim() });
+  try {
+    const result = await execProcOne<DbAuthUser>("sp_GetUserByEmail", { Email: email.toLowerCase().trim() });
+    console.log("[DB] sp_GetUserByEmail returned:", result ? "user found" : "no user");
+    return result;
+  } catch (error) {
+    console.error("[DB] sp_GetUserByEmail failed:", error);
+    throw error;
+  }
 }
 
 export async function createAuthUser(input: { email: string; password: string; fullName?: string | null }) {
@@ -36,12 +43,29 @@ export async function createAuthUser(input: { email: string; password: string; f
 }
 
 export async function verifyAuthUser(email: string, password: string) {
+  console.log("[AUTH-DB] Looking up user:", email);
   const user = await getAuthUserByEmail(email);
-  if (!user || !user.is_active || !user.password_hash) {
+  console.log("[AUTH-DB] User found:", user ? `${user.email} (active: ${user.is_active})` : "not found");
+  
+  if (!user) {
+    console.log("[AUTH-DB] User not found");
+    return null;
+  }
+  
+  if (!user.is_active) {
+    console.log("[AUTH-DB] User is inactive");
+    return null;
+  }
+  
+  if (!user.password_hash) {
+    console.log("[AUTH-DB] User has no password hash (OAuth-only account)");
     return null;
   }
 
+  console.log("[AUTH-DB] Comparing passwords...");
   const ok = await bcrypt.compare(password, user.password_hash);
+  console.log("[AUTH-DB] Password match:", ok);
+  
   if (!ok) {
     return null;
   }
