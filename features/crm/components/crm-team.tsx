@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock3, Mail, Power, RotateCcw, Users } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,14 +17,37 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { EmptyState, PageTransition } from "@/components/states";
+import { useCrm, useCrmAction } from "@/hooks/use-crm";
 import { initials } from "@/lib/utils";
-import type { CrmTeamMember, CrmSnapshot } from "@/features/crm/types";
+import type { CrmTeamMember } from "@/features/crm/types";
 import { CrmLoadState } from "./crm-load-state";
 import { CreateMemberDialog, ManageMemberBrandsDialog } from "./crm-dialogs";
 import { CrmBadge, FocusTimer, formatMinutes, formatTime } from "./crm-ui";
 
 function MemberStatusControl({ member }: { member: CrmTeamMember }) {
+  const action = useCrmAction();
   const nextActive = !member.isActive;
+
+  async function updateStatus() {
+    try {
+      await action.mutateAsync({
+        action: "set_member_active",
+        userId: member.id,
+        isActive: nextActive,
+      });
+      toast.success(
+        nextActive ? "Team member reactivated" : "Team member deactivated",
+        {
+          description: nextActive
+            ? "They can sign in again with their existing credentials."
+            : "Login is disabled and all past history has been preserved.",
+        },
+      );
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  }
 
   return (
     <AlertDialog>
@@ -31,7 +55,7 @@ function MemberStatusControl({ member }: { member: CrmTeamMember }) {
         <Button
           size="sm"
           variant={member.isActive ? "outline" : "secondary"}
-          className={member.isActive ? "text-red-600 hover:text-red-600" : ""}
+          className={member.isActive ? "text-destructive hover:text-destructive" : ""}
         >
           {member.isActive ? (
             <Power className="h-4 w-4" />
@@ -54,7 +78,11 @@ function MemberStatusControl({ member }: { member: CrmTeamMember }) {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction variant={member.isActive ? "destructive" : "default"}>
+          <AlertDialogAction
+            variant={member.isActive ? "destructive" : "default"}
+            disabled={action.isPending}
+            onClick={() => void updateStatus()}
+          >
             {member.isActive ? "Deactivate" : "Reactivate"}
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -63,41 +91,32 @@ function MemberStatusControl({ member }: { member: CrmTeamMember }) {
   );
 }
 
-interface CrmTeamProps {
-  data?: CrmSnapshot | null;
-  isLoading?: boolean;
-  error?: Error | null;
-}
-
-export function CrmTeam({
-  data,
-  isLoading,
-  error,
-}: CrmTeamProps = {}) {
-  if (isLoading) {
-    return <CrmLoadState loading={true} error={null} retry={() => {}} />;
+export function CrmTeam() {
+  const crm = useCrm();
+  const data = crm.data;
+  if (!data) {
+    return (
+      <PageTransition className="space-y-6">
+        <PageHeader
+          eyebrow="CRM · People"
+          title="Team members"
+          description="Manage active and former members without losing their work history."
+          actions={<CreateMemberDialog brands={[]} />}
+        />
+        <EmptyState
+          title="No team members yet"
+          message="Add the first member to create their private CRM login."
+          icon={Users}
+          action={<CreateMemberDialog brands={[]} />}
+        />
+      </PageTransition>
+    );
   }
-
-  if (error || !data) {
-    return <CrmLoadState loading={false} error={error || new Error("No data")} retry={() => {}} />;
-  }
-
   const isManager = data.role === "manager";
   const isPoc = data.pocProjectIds.length > 0;
 
-  const displayTeam = isManager
-    ? data.team
-    : isPoc
-      ? data.team.filter((m) => {
-          const pocProjects = data.projects.filter(
-            (p) => data.pocProjectIds.includes(p.id) && p.memberIds.includes(m.id),
-          );
-          return pocProjects.length > 0;
-        })
-      : data.team.filter((m) => m.id === data.currentUserId);
-
   return (
-    <div className="space-y-6">
+    <PageTransition className="space-y-6">
       <PageHeader
         eyebrow="CRM · People"
         title={isManager ? "Team members" : isPoc ? "My project team" : "My profile"}
@@ -111,20 +130,16 @@ export function CrmTeam({
         actions={isManager ? <CreateMemberDialog brands={data.brands} /> : undefined}
       />
 
-      {displayTeam.length === 0 ? (
-        <Card className="border-dashed border-slate-300">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Users className="h-12 w-12 text-slate-400 mb-4" />
-            <p className="text-sm font-medium text-slate-900">No team members yet</p>
-            <p className="text-xs text-slate-600 mt-1">
-              Add the first member to create their private CRM login.
-            </p>
-            {isManager && <CreateMemberDialog brands={data.brands} />}
-          </CardContent>
-        </Card>
+      {data.team.length === 0 ? (
+        <EmptyState
+          title="No team members yet"
+          message="Add the first member to create their private CRM login."
+          icon={Users}
+          action={isManager ? <CreateMemberDialog brands={data.brands} /> : undefined}
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {displayTeam.map((member) => (
+          {data.team.map((member) => (
             <Card key={member.id} className={!member.isActive ? "opacity-75" : undefined}>
               <CardContent className="p-5">
                 <div className="flex items-start gap-3">
@@ -139,7 +154,7 @@ export function CrmTeam({
                         <p className="truncate font-medium">
                           {member.fullName || member.email}
                         </p>
-                        <p className="truncate text-xs text-slate-600">
+                        <p className="truncate text-xs text-muted-foreground">
                           {member.jobTitle ||
                             (member.role === "admin" || member.role === "superadmin"
                               ? "Manager"
@@ -149,11 +164,11 @@ export function CrmTeam({
                       <CrmBadge value={member.attendanceStatus} />
                     </div>
                     {member.department && (
-                      <p className="mt-1 text-xs text-blue-600">{member.department}</p>
+                      <p className="mt-1 text-xs text-primary">{member.department}</p>
                     )}
                   </div>
                 </div>
-                <div className="mt-5 space-y-2 border-t border-slate-200 pt-4 text-xs text-slate-600">
+                <div className="mt-5 space-y-2 border-t border-border/60 pt-4 text-xs text-muted-foreground">
                   <p className="flex items-center gap-2">
                     <Mail className="h-3.5 w-3.5" />
                     <span className="truncate">{member.email}</span>
@@ -165,9 +180,9 @@ export function CrmTeam({
                       : `${formatMinutes(member.workedMinutesToday)} worked today`}
                   </p>
                   {member.currentProjectName && (
-                    <p className="flex items-center gap-2 text-slate-900">
-                      <span className="relative flex h-2 w-2 rounded-full bg-green-500">
-                        <span className="absolute inset-0 animate-ping rounded-full bg-green-500 opacity-50" />
+                    <p className="flex items-center gap-2 text-foreground">
+                      <span className="relative flex h-2 w-2 rounded-full bg-success">
+                        <span className="absolute inset-0 animate-ping rounded-full bg-success opacity-50" />
                       </span>
                       <span className="truncate">
                         Working on {member.currentTaskTitle || member.currentProjectName}
@@ -183,9 +198,7 @@ export function CrmTeam({
                   )}
                   {isManager && member.role !== "admin" && member.role !== "superadmin" && (
                     <div className="flex flex-wrap gap-2 pt-2">
-                      {data.brands.length > 0 && (
-                        <ManageMemberBrandsDialog member={member} brands={data.brands} />
-                      )}
+                      <ManageMemberBrandsDialog member={member} brands={data.brands} />
                       <MemberStatusControl member={member} />
                     </div>
                   )}
@@ -195,6 +208,6 @@ export function CrmTeam({
           ))}
         </div>
       )}
-    </div>
+    </PageTransition>
   );
 }

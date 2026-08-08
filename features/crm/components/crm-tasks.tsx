@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ClipboardCheck } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,8 +14,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { EmptyState, PageTransition } from "@/components/states";
+import { useCrm, useCrmAction } from "@/hooks/use-crm";
+import type {
+  CrmProject,
+  CrmTask,
+  CrmTaskStatus,
+  CrmTeamMember,
+} from "@/features/crm/types";
 import { CrmLoadState } from "./crm-load-state";
-import { CreateProjectDialog, CreateTaskDialog, ManageTaskDialog } from "./crm-dialogs";
+import {
+  CreateProjectDialog,
+  CreateTaskDialog,
+  ManageTaskDialog,
+} from "./crm-dialogs";
 import {
   CrmBadge,
   CrmProgress,
@@ -25,13 +38,6 @@ import {
   TaskPriorityBadge,
   taskStatusOptions,
 } from "./crm-ui";
-import type {
-  CrmProject,
-  CrmTask,
-  CrmTaskStatus,
-  CrmTeamMember,
-  CrmSnapshot,
-} from "@/features/crm/types";
 
 function TaskCard({
   task,
@@ -48,6 +54,7 @@ function TaskCard({
   project: CrmProject;
   team: CrmTeamMember[];
 }) {
+  const action = useCrmAction();
   const [status, setStatus] = useState<CrmTaskStatus>(task.status);
   const [progress, setProgress] = useState(task.progress);
   const [isBlocked, setIsBlocked] = useState(task.isBlocked);
@@ -71,14 +78,33 @@ function TaskCard({
     task.progress,
     task.isBlocked,
     task.blockerReason,
-    task.updatedAt,
+    task.lastUpdateAt,
   ]);
+
+  async function save() {
+    try {
+      await action.mutateAsync({
+        action: "update_task",
+        taskId: task.id,
+        status,
+        progress,
+        note,
+        isBlocked,
+        blockerReason,
+      });
+      toast.success(
+        status === "done" ? "Task approved and completed" : "Task progress updated",
+      );
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  }
 
   return (
     <Card
       className={
         task.activeFocusStartedAt
-          ? "border-blue-500 bg-blue-50 shadow-sm ring-1 ring-blue-200"
+          ? "border-primary/55 bg-primary/[0.06] shadow-sm ring-1 ring-primary/15"
           : task.isBlocked
             ? "border-amber-500/35"
             : undefined
@@ -92,40 +118,40 @@ function TaskCard({
               <TaskPriorityBadge priority={task.priority} />
               <CrmBadge value={task.status} />
               {task.isBlocked && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/12 px-2 py-0.5 text-[11px] font-semibold text-amber-600">
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/12 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
                   <AlertTriangle className="h-3 w-3" />
                   Blocked
                 </span>
               )}
               {task.activeFocusStartedAt && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/12 px-2 py-0.5 text-[11px] font-semibold text-blue-600">
-                  <span className="relative flex h-2 w-2 rounded-full bg-blue-600">
-                    <span className="absolute inset-0 animate-ping rounded-full bg-blue-600 opacity-50" />
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/12 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                  <span className="relative flex h-2 w-2 rounded-full bg-primary">
+                    <span className="absolute inset-0 animate-ping rounded-full bg-primary opacity-50" />
                   </span>
                   Working now
                 </span>
               )}
             </div>
-            <p className="mt-1 text-xs text-slate-600">
+            <p className="mt-1 text-xs text-muted-foreground">
               {task.projectName}
               {task.assigneeName ? ` · ${task.assigneeName}` : " · Unassigned"}
-              {` · Due ${formatDate(task.dueDate || "")}`}
+              {` · Due ${formatDate(task.dueDate)}`}
               {task.estimatedMinutes
                 ? ` · Est. ${Math.round((task.estimatedMinutes / 60) * 10) / 10}h`
                 : ""}
             </p>
             {task.description && (
-              <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-slate-600">
+              <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
                 {task.description}
               </p>
             )}
             {task.isBlocked && task.blockerReason && (
-              <p className="mt-2 rounded-md border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2 text-xs text-amber-700">
+              <p className="mt-2 rounded-md border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
                 <strong>Blocker:</strong> {task.blockerReason}
               </p>
             )}
             {task.activeFocusStartedAt && (
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-blue-200 bg-white px-3 py-2 text-xs">
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-primary/20 bg-background/50 px-3 py-2 text-xs">
                 <span>
                   Started <strong>{formatTime(task.activeFocusStartedAt)}</strong>
                 </span>
@@ -133,7 +159,7 @@ function TaskCard({
                   Total time <FocusTimer startedAt={task.activeFocusStartedAt} />
                 </span>
                 {task.activeFocusUserName && (
-                  <span className="text-slate-600">
+                  <span className="text-muted-foreground">
                     {task.activeFocusUserName}
                   </span>
                 )}
@@ -141,7 +167,7 @@ function TaskCard({
             )}
             <CrmProgress value={task.progress} className="mt-3 max-w-xl" />
             {task.lastUpdateAt && (
-              <p className="mt-2 text-xs text-slate-600">
+              <p className="mt-2 text-xs text-muted-foreground">
                 Last update by {task.lastUpdatedByName || "team member"} on{" "}
                 {formatDate(task.lastUpdateAt)}
                 {task.lastUpdateNote ? `: ${task.lastUpdateNote}` : ""}
@@ -150,11 +176,11 @@ function TaskCard({
           </div>
 
           {canUpdate && (
-            <div className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 lg:w-80">
+            <div className="w-full rounded-lg border border-border bg-muted/30 p-3 lg:w-80">
               <div className="flex gap-2">
                 <Select
                   value={status}
-                  onValueChange={(value: string) => {
+                  onValueChange={(value) => {
                     const next = value as CrmTaskStatus;
                     setStatus(next);
                     if (next === "done") {
@@ -187,13 +213,15 @@ function TaskCard({
                   size="sm"
                   disabled={
                     !dirty ||
+                    action.isPending ||
                     (isBlocked && blockerReason.trim().length === 0)
                   }
+                  onClick={() => void save()}
                 >
                   Save
                 </Button>
               </div>
-              <label className="mt-3 block text-xs text-slate-600">
+              <label className="mt-3 block text-xs text-muted-foreground">
                 Progress: {progress}%
                 <input
                   type="range"
@@ -201,8 +229,8 @@ function TaskCard({
                   max={100}
                   step={5}
                   value={progress}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setProgress(Number(event.target.value))}
-                  className="mt-1 block w-full accent-blue-600"
+                  onChange={(event) => setProgress(Number(event.target.value))}
+                  className="mt-1 block w-full accent-primary"
                 />
               </label>
               <label className="mt-3 flex items-center gap-2 text-xs font-medium">
@@ -213,14 +241,14 @@ function TaskCard({
                     setIsBlocked(event.target.checked);
                     if (!event.target.checked) setBlockerReason("");
                   }}
-                  className="accent-blue-600"
+                  className="accent-primary"
                 />
                 This task is blocked
               </label>
               {isBlocked && (
                 <Textarea
                   value={blockerReason}
-                  onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setBlockerReason(event.target.value)}
+                  onChange={(event) => setBlockerReason(event.target.value)}
                   placeholder="What is blocking delivery?"
                   className="mt-2 min-h-16 text-xs"
                   maxLength={600}
@@ -228,11 +256,25 @@ function TaskCard({
               )}
               <Textarea
                 value={note}
-                onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setNote(event.target.value)}
-                placeholder="Add an update note"
+                onChange={(event) => setNote(event.target.value)}
+                placeholder={
+                  status === "review"
+                    ? "What is ready for POC review?"
+                    : "Optional progress or review note"
+                }
                 className="mt-2 min-h-16 text-xs"
                 maxLength={600}
               />
+              {requiresPocReview && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Submit as Review; the project POC approves Done.
+                </p>
+              )}
+              {canManage && (
+                <div className="mt-2 flex justify-end">
+                  <ManageTaskDialog task={task} project={project} team={team} />
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -241,155 +283,200 @@ function TaskCard({
   );
 }
 
-interface CrmTasksProps {
-  data?: CrmSnapshot | null;
-  isLoading?: boolean;
-  error?: Error | null;
-}
+export function CrmTasks() {
+  const crm = useCrm();
+  const data = crm.data;
+  const [filter, setFilter] = useState<
+    "open" | "attention" | "done" | "all"
+  >("open");
 
-export function CrmTasks({
-  data,
-  isLoading,
-  error,
-}: CrmTasksProps = {}) {
-  const [filterProject, setFilterProject] = useState<string>("");
-  const [filterStatus, setFilterStatus] = useState<CrmTaskStatus | "all">("all");
+  const tasks = useMemo(() => {
+    const source = data?.tasks ?? [];
+    const filtered =
+      filter === "open"
+        ? source.filter((task) => task.status !== "done")
+        : filter === "attention"
+          ? source.filter((task) => task.isBlocked || task.status === "review")
+          : filter === "done"
+            ? source.filter((task) => task.status === "done")
+            : source;
+    return [...filtered].sort((a, b) => {
+      if (a.activeFocusStartedAt && !b.activeFocusStartedAt) return -1;
+      if (!a.activeFocusStartedAt && b.activeFocusStartedAt) return 1;
+      if (a.isBlocked && !b.isBlocked) return -1;
+      if (!a.isBlocked && b.isBlocked) return 1;
+      if (a.status === "review" && b.status !== "review") return -1;
+      if (a.status !== "review" && b.status === "review") return 1;
+      const priorityOrder = compareTaskPriority(a, b);
+      if (priorityOrder !== 0) return priorityOrder;
+      return 0;
+    });
+  }, [data?.tasks, filter]);
 
-  if (isLoading) {
-    return <CrmLoadState loading={true} error={null} retry={() => {}} />;
-  }
-
-  if (error || !data) {
-    return <CrmLoadState loading={false} error={error || new Error("No data")} retry={() => {}} />;
+  if (!data) {
+    const isManager = true;
+    return (
+      <PageTransition className="space-y-6">
+        <PageHeader
+          eyebrow="CRM · Execution"
+          title="Team tasks"
+          description="Assign deliverables and see exactly how far every task has moved."
+          actions={<CreateProjectDialog team={[]} />}
+        />
+        <EmptyState
+          title="No tasks here"
+          message="Create a task and assign it to a project member."
+          icon={ClipboardCheck}
+          action={<CreateProjectDialog team={[]} />}
+        />
+      </PageTransition>
+    );
   }
 
   const isManager = data.role === "manager";
   const isPoc = data.pocProjectIds.length > 0;
-
-  const filteredTasks = useMemo(() => {
-    let tasks = data.tasks;
-
-    if (!isManager && !isPoc) {
-      tasks = tasks.filter((t) => t.assigneeId === data.currentUserId);
-    } else if (isPoc && !isManager) {
-      tasks = tasks.filter((t) =>
-        data.pocProjectIds.includes(t.projectId),
+  const manageableProjects = isManager
+    ? data.projects
+    : data.projects.filter((project) =>
+        data.pocProjectIds.includes(project.id),
       );
-    }
-
-    if (filterProject && filterProject !== "all") {
-      tasks = tasks.filter((t) => t.projectId === filterProject);
-    }
-
-    if (filterStatus !== "all") {
-      tasks = tasks.filter((t) => t.status === filterStatus);
-    }
-
-    return tasks.sort((a, b) => {
-      if (a.activeFocusStartedAt && !b.activeFocusStartedAt) return -1;
-      if (!a.activeFocusStartedAt && b.activeFocusStartedAt) return 1;
-      return compareTaskPriority(a, b);
-    });
-  }, [data, filterProject, filterStatus, isManager, isPoc, data.currentUserId]);
-
-  const projects = isManager ? data.projects : data.projects.filter((p) =>
-    p.memberIds.includes(data.currentUserId),
-  );
 
   return (
-    <div className="space-y-6">
+    <PageTransition className="space-y-6">
       <PageHeader
-        eyebrow="CRM · Tasks"
-        title={isManager ? "All tasks" : isPoc ? "My POC tasks" : "My tasks"}
+        eyebrow="CRM · Execution"
+        title={isManager ? "Team tasks" : isPoc ? "My tasks & POC reviews" : "My tasks"}
         description={
           isManager
-            ? "Track all team work and delivery status."
+            ? "Assign deliverables and see exactly how far every task has moved."
             : isPoc
-              ? "Tasks in projects where you are the POC."
-              : "Your assigned work and progress."
+              ? "Manage assigned projects, resolve blockers and approve reviewed work."
+              : "Update the status and progress of work assigned to you."
         }
         actions={
-          isManager && projects.length > 0 ? (
-            <CreateTaskDialog project={projects[0]} />
-          ) : isManager ? (
-            <CreateProjectDialog team={data.team} />
+          manageableProjects.length > 0 ? (
+            <CreateTaskDialog projects={manageableProjects} team={data.team} />
           ) : undefined
         }
       />
 
-      {projects.length === 0 && !isManager ? (
-        <Card className="border-dashed border-slate-300">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <ClipboardCheck className="h-12 w-12 text-slate-400 mb-4" />
-            <p className="text-sm font-medium text-slate-900">No tasks yet</p>
-            <p className="text-xs text-slate-600 mt-1">
-              You are not assigned to any tasks.
-            </p>
-          </CardContent>
-        </Card>
+      <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1 sm:w-fit">
+        {(["open", "attention", "done", "all"] as const).map((value) => (
+          <button
+            key={value}
+            onClick={() => setFilter(value)}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition ${
+              filter === value
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {value}
+          </button>
+        ))}
+      </div>
+
+      {tasks.length === 0 ? (
+        <EmptyState
+          title={filter === "done" ? "No completed tasks" : "No tasks here"}
+          message={
+            isManager || isPoc
+              ? "Create a task and assign it to a project member."
+              : "There are no tasks matching this view."
+          }
+          icon={filter === "done" ? CheckCircle2 : ClipboardCheck}
+          action={
+            isManager ? (
+              <div className="flex flex-wrap justify-center gap-2">
+                <CreateProjectDialog team={data.team} />
+                {manageableProjects.length > 0 && (
+                  <CreateTaskDialog projects={manageableProjects} team={data.team} />
+                )}
+              </div>
+            ) : manageableProjects.length > 0 ? (
+              <CreateTaskDialog projects={manageableProjects} team={data.team} />
+            ) : undefined
+          }
+        />
       ) : (
-        <>
-          <div className="flex gap-4 flex-col sm:flex-row">
-            <Select value={filterProject} onValueChange={setFilterProject}>
-              <SelectTrigger className="sm:w-48">
-                <SelectValue placeholder="All projects" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All projects</SelectItem>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="space-y-3">
+          {tasks.map((task) => {
+            const project = data.projects.find(
+              (candidate) => candidate.id === task.projectId,
+            );
+            if (!project) return null;
+            const canManage =
+              isManager || data.pocProjectIds.includes(task.projectId);
+            const isAssignee = task.assigneeId === data.currentUserId;
+            return (
+              <TaskCard
+                key={task.id}
+                task={task}
+                canUpdate={
+                  canManage ||
+                  (isAssignee && !(project.pocId && task.status === "done"))
+                }
+                canManage={canManage}
+                requiresPocReview={
+                  !canManage && isAssignee && Boolean(project.pocId)
+                }
+                project={project}
+                team={data.team}
+              />
+            );
+          })}
+        </div>
+      )}
 
-            <Select value={filterStatus} onValueChange={(v: string) => setFilterStatus(v as any)}>
-              <SelectTrigger className="sm:w-48">
-                <SelectValue placeholder="All statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {taskStatusOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {filteredTasks.length === 0 ? (
-            <Card className="border-dashed border-slate-300">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <ClipboardCheck className="h-12 w-12 text-slate-400 mb-4" />
-                <p className="text-sm font-medium text-slate-900">No tasks match filters</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {filteredTasks.map((task) => {
-                const project = data.projects.find((p) => p.id === task.projectId);
+      {(isManager || isPoc) && data.taskUpdates.length > 0 && (
+        <Card>
+          <CardContent className="p-5">
+            <div className="mb-4">
+              <p className="font-semibold">Recent delivery updates</p>
+              <p className="text-xs text-muted-foreground">
+                Status, progress, blocker and review activity across the projects
+                you manage.
+              </p>
+            </div>
+            <div className="space-y-3">
+              {data.taskUpdates.slice(0, 10).map((update) => {
+                const task = data.tasks.find(
+                  (candidate) => candidate.id === update.taskId,
+                );
                 return (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    canUpdate={
-                      isManager || task.assigneeId === data.currentUserId
-                    }
-                    canManage={isManager}
-                    requiresPocReview={
-                      project ? data.pocProjectIds.includes(project.id) : false
-                    }
-                    project={project || ({} as CrmProject)}
-                    team={data.team}
-                  />
+                  <div
+                    key={update.id}
+                    className="flex flex-col gap-2 border-b border-border/60 pb-3 last:border-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {task?.title || "Task update"}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {update.actorName}
+                        {update.previousStatus
+                          ? ` · ${update.previousStatus.replace("_", " ")} → ${update.status.replace("_", " ")}`
+                          : ` · ${update.status.replace("_", " ")}`}
+                        {` · ${update.progress}%`}
+                      </p>
+                      {(update.note || update.blockerReason) && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {update.blockerReason
+                            ? `Blocker: ${update.blockerReason}`
+                            : update.note}
+                        </p>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {formatDate(update.createdAt)} {formatTime(update.createdAt)}
+                    </span>
+                  </div>
                 );
               })}
             </div>
-          )}
-        </>
+          </CardContent>
+        </Card>
       )}
-    </div>
+    </PageTransition>
   );
 }

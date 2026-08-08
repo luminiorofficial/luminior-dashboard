@@ -1,9 +1,3 @@
-export const dynamic = "force-dynamic";
+import { handlers } from "@/auth";
 
-export async function GET() {
-  return Response.json({ ok: true });
-}
-
-export async function POST() {
-  return Response.json({ ok: true });
-}
+export const { GET, POST } = handlers;

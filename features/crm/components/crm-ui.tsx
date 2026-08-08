@@ -1,151 +1,39 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import * as React from "react";
+import type { LucideIcon } from "lucide-react";
 import {
-  AlertTriangle,
-  CheckCircle2,
   Clock3,
+  Play,
   Loader2,
-  Zap,
+  Square,
+  FolderKanban,
 } from "lucide-react";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import {
+  taskPriorityLabels,
+  taskPriorityRank,
+} from "@/features/crm/types";
 import type {
   CrmPriority,
-  CrmProjectStatus,
+  CrmProject,
+  CrmProjectWorkEntry,
+  CrmTask,
+  CrmTeamMember,
   CrmTaskStatus,
   CrmTimerStatus,
 } from "@/features/crm/types";
-
-export function formatDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Invalid date";
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: date.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
-  });
-}
-
-export function formatTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Invalid time";
-  return date.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-export function formatMinutes(minutes: number): string {
-  if (minutes === 0) return "0m";
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (hours === 0) return `${mins}m`;
-  if (mins === 0) return `${hours}h`;
-  return `${hours}h ${mins}m`;
-}
-
-export function compareTaskPriority(
-  a: { priority: CrmPriority },
-  b: { priority: CrmPriority },
-): number {
-  const priorityRank: Record<CrmPriority, number> = {
-    p0: 0,
-    p1: 1,
-    p2: 2,
-    p3: 3,
-  };
-  return priorityRank[a.priority] - priorityRank[b.priority];
-}
-
-export const taskStatusOptions = [
-  { value: "todo" as CrmTaskStatus, label: "To do" },
-  { value: "in_progress" as CrmTaskStatus, label: "In progress" },
-  { value: "review" as CrmTaskStatus, label: "In review" },
-  { value: "done" as CrmTaskStatus, label: "Done" },
-];
-
-export function CrmBadge({ value }: { value: string }) {
-  const colors: Record<string, { bg: string; text: string }> = {
-    planning: { bg: "bg-slate-100", text: "text-slate-700" },
-    active: { bg: "bg-blue-100", text: "text-blue-700" },
-    on_hold: { bg: "bg-amber-100", text: "text-amber-700" },
-    completed: { bg: "bg-green-100", text: "text-green-700" },
-    todo: { bg: "bg-slate-100", text: "text-slate-700" },
-    in_progress: { bg: "bg-blue-100", text: "text-blue-700" },
-    review: { bg: "bg-amber-100", text: "text-amber-700" },
-    done: { bg: "bg-green-100", text: "text-green-700" },
-    working: { bg: "bg-green-100", text: "text-green-700" },
-    on_break: { bg: "bg-yellow-100", text: "text-yellow-700" },
-    stopped: { bg: "bg-slate-100", text: "text-slate-700" },
-    absent: { bg: "bg-slate-100", text: "text-slate-700" },
-    inactive: { bg: "bg-gray-100", text: "text-gray-700" },
-    offline: { bg: "bg-slate-100", text: "text-slate-700" },
-  };
-
-  const color = colors[value] || { bg: "bg-slate-100", text: "text-slate-700" };
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
-        color.bg,
-        color.text,
-      )}
-    >
-      {value.replace(/_/g, " ")}
-    </span>
-  );
-}
-
-export function TaskPriorityBadge({ priority }: { priority: CrmPriority }) {
-  const colors: Record<CrmPriority, { bg: string; text: string }> = {
-    p0: { bg: "bg-red-100", text: "text-red-700" },
-    p1: { bg: "bg-orange-100", text: "text-orange-700" },
-    p2: { bg: "bg-yellow-100", text: "text-yellow-700" },
-    p3: { bg: "bg-green-100", text: "text-green-700" },
-  };
-
-  const color = colors[priority];
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
-        color.bg,
-        color.text,
-      )}
-    >
-      {priority}
-    </span>
-  );
-}
-
-export function PriorityBadge({ priority }: { priority: CrmPriority }) {
-  return <TaskPriorityBadge priority={priority} />;
-}
-
-export function CrmProgress({
-  value,
-  className = "",
-  showLabel = true,
-}: {
-  value: number;
-  className?: string;
-  showLabel?: boolean;
-}) {
-  return (
-    <div className={className}>
-      <div className="flex items-center justify-between text-xs mb-1">
-        <span className="font-medium">Progress</span>
-        {showLabel && <span className="text-muted-foreground">{value}%</span>}
-      </div>
-      <div className="h-2 w-full rounded-full bg-slate-200">
-        <div
-          className="h-2 rounded-full bg-blue-500 transition-all"
-          style={{ width: `${value}%` }}
-        />
-      </div>
-    </div>
-  );
-}
 
 export function CrmStatCard({
   label,
@@ -155,99 +43,146 @@ export function CrmStatCard({
   accent = false,
 }: {
   label: string;
-  value: number | string;
-  detail: string;
-  icon: React.ComponentType<{ className?: string }>;
+  value: string | number;
+  detail?: string;
+  icon: LucideIcon;
   accent?: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-lg border p-4",
-        accent
-          ? "border-blue-200 bg-blue-50"
-          : "border-slate-200 bg-white",
-      )}
-    >
-      <Icon className={cn("h-5 w-5 mb-2", accent ? "text-blue-600" : "text-slate-600")} />
-      <p className={cn("text-2xl font-bold", accent ? "text-blue-900" : "text-slate-900")}>
-        {value}
-      </p>
-      <p className="text-xs text-slate-600 mt-1">{label}</p>
-      <p className="text-xs text-slate-500">{detail}</p>
-    </div>
+    <Card className={cn(accent && "border-primary/30 bg-primary/[0.04]")}>
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {label}
+            </p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight">{value}</p>
+            {detail && (
+              <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+            )}
+          </div>
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Icon className="h-4 w-4" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-export function FocusTimer({ startedAt, compact }: { startedAt: string; compact?: boolean }) {
-  const [elapsed, setElapsed] = useState(0);
+const statusVariant: Record<string, BadgeProps["variant"]> = {
+  active: "success",
+  completed: "success",
+  done: "success",
+  working: "success",
+  approved: "success",
+  planning: "default",
+  in_progress: "default",
+  review: "warning",
+  pending: "warning",
+  on_break: "warning",
+  on_hold: "warning",
+  rejected: "destructive",
+  offline: "secondary",
+  absent: "destructive",
+  inactive: "outline",
+  todo: "secondary",
+};
 
-  useEffect(() => {
-    const started = new Date(startedAt);
-    if (Number.isNaN(started.getTime())) return;
-
-    const timer = setInterval(() => {
-      const now = new Date();
-      const diff = now.getTime() - started.getTime();
-      setElapsed(Math.floor(diff / 1000));
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [startedAt]);
-
-  const hours = Math.floor(elapsed / 3600);
-  const minutes = Math.floor((elapsed % 3600) / 60);
-  const seconds = elapsed % 60;
-
-  if (compact) {
-    if (hours > 0) return <span>{hours}h {minutes}m</span>;
-    return <span>{minutes}m {seconds}s</span>;
-  }
-
+export function CrmBadge({ value }: { value: string }) {
   return (
-    <span className="font-mono">
-      {String(hours).padStart(2, "0")}:{String(minutes).padStart(2, "0")}:
-      {String(seconds).padStart(2, "0")}
-    </span>
+    <Badge variant={statusVariant[value] ?? "outline"}>
+      {value
+        .split("_")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ")}
+    </Badge>
   );
 }
 
-export function ActiveTimer({
-  status,
-  since,
-  breakStartedAt,
-  breakMinutes,
-  breakLabel,
+export function PriorityBadge({ priority }: { priority: CrmPriority }) {
+  const variant: BadgeProps["variant"] =
+    priority === "p0"
+      ? "destructive"
+      : priority === "p1"
+        ? "warning"
+        : priority === "p2"
+          ? "default"
+          : "secondary";
+  return <Badge variant={variant}>{taskPriorityLabels[priority]}</Badge>;
+}
+
+export function TaskPriorityBadge({ priority }: { priority: CrmPriority }) {
+  const variant: BadgeProps["variant"] =
+    priority === "p0"
+      ? "destructive"
+      : priority === "p1"
+        ? "warning"
+        : priority === "p2"
+          ? "default"
+          : "secondary";
+  return <Badge variant={variant}>{taskPriorityLabels[priority]}</Badge>;
+}
+
+export function compareTaskPriority(a: CrmTask, b: CrmTask) {
+  return taskPriorityRank[a.priority] - taskPriorityRank[b.priority];
+}
+
+export function CrmProgress({
+  value,
+  className,
+  showLabel = true,
 }: {
-  status: "working" | "on_break" | "stopped";
-  since: string | null;
-  breakStartedAt: string | null;
-  breakMinutes: number;
-  breakLabel: string | null;
+  value: number;
+  className?: string;
+  showLabel?: boolean;
 }) {
-  if (!since || status === "stopped") {
-    return <p className="text-sm text-slate-600">Not clocked in</p>;
-  }
-
+  const safe = Math.max(0, Math.min(100, value));
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex items-center gap-2">
-        <span className="relative flex h-2 w-2 rounded-full bg-green-500">
-          <span className="absolute inset-0 animate-ping rounded-full bg-green-500 opacity-50" />
-        </span>
-        <span className="text-sm font-medium">
-          {status === "on_break" ? "On break" : "Working"}
-        </span>
+    <div className={cn("flex items-center gap-2", className)}>
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-primary transition-[width] duration-500"
+          style={{ width: `${safe}%` }}
+        />
       </div>
-      <FocusTimer
-        startedAt={status === "on_break" && breakStartedAt ? breakStartedAt : since}
-        compact
-      />
-      {status === "on_break" && breakLabel && (
-        <span className="text-xs text-slate-500">· {breakLabel}</span>
+      {showLabel && (
+        <span className="w-9 text-right text-xs tabular-nums text-muted-foreground">
+          {safe}%
+        </span>
       )}
     </div>
   );
+}
+
+export function formatMinutes(minutes: number) {
+  const safe = Math.max(0, Math.round(minutes));
+  const hours = Math.floor(safe / 60);
+  const mins = safe % 60;
+  return hours ? `${hours}h ${mins}m` : `${mins}m`;
+}
+
+export function formatDate(value: string | null) {
+  if (!value) return "No date";
+  const parsed = new Date(
+    /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
+  );
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(parsed);
+}
+
+export function formatTime(value: string | null) {
+  const parsed = value ? new Date(value) : null;
+  if (parsed && Number.isNaN(parsed.getTime())) return "Invalid time";
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed!);
 }
 
 export function TimerControls({
@@ -256,46 +191,175 @@ export function TimerControls({
   pendingAction,
   onAction,
 }: {
-  status: "working" | "on_break" | "stopped";
+  status: CrmTimerStatus | "idle";
   busy: boolean;
   pendingAction: "clock_in" | "end_break" | "clock_out" | null;
   onAction: (action: "clock_in" | "end_break" | "clock_out") => void;
 }) {
-  const isClocking = pendingAction === "clock_in" || pendingAction === "clock_out";
-
-  if (status === "stopped") {
+  if (status === "idle" || status === "stopped") {
     return (
-      <button
-        disabled={busy}
-        onClick={() => onAction("clock_in")}
-        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-      >
-        {pendingAction === "clock_in" && <Loader2 className="h-4 w-4 animate-spin mr-2 inline" />}
-        Clock in
-      </button>
+      <Button disabled={busy} onClick={() => onAction("clock_in")}>
+        <Play className="h-4 w-4" /> Start work
+      </Button>
     );
   }
-
   return (
-    <div className="flex gap-2">
-      {status === "on_break" ? (
-        <button
+    <div className="flex flex-wrap gap-2" aria-busy={busy}>
+      {status === "on_break" && (
+        <Button
           disabled={busy}
           onClick={() => onAction("end_break")}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {pendingAction === "end_break" && <Loader2 className="h-4 w-4 animate-spin mr-2 inline" />}
-          End break
-        </button>
-      ) : null}
-      <button
-        disabled={busy || isClocking}
+          <Play className="h-4 w-4" /> Resume work
+        </Button>
+      )}
+      <Button
+        variant="secondary"
+        disabled={busy}
         onClick={() => onAction("clock_out")}
-        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+        aria-label={pendingAction === "clock_out" ? "Stopping workday" : "Stop workday"}
       >
-        {pendingAction === "clock_out" && <Loader2 className="h-4 w-4 animate-spin mr-2 inline" />}
-        Clock out
-      </button>
+        {pendingAction === "clock_out" ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" /> Stopping…
+          </>
+        ) : (
+          <>
+            <Square className="h-4 w-4" /> Stop
+          </>
+        )}
+      </Button>
+    </div>
+  );
+}
+
+export function formatElapsed(milliseconds: number) {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds]
+    .map((value) => String(value).padStart(2, "0"))
+    .join(":");
+}
+
+export function FocusTimer({
+  startedAt,
+  compact = false,
+}: {
+  startedAt: string;
+  compact?: boolean;
+}) {
+  const [now, setNow] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    const update = () => setNow(Date.now());
+    update();
+    const interval = window.setInterval(update, 1000);
+    return () => window.clearInterval(interval);
+  }, [startedAt]);
+
+  const startedMs = new Date(startedAt).getTime();
+  const elapsed = Math.max(0, (now ?? startedMs) - startedMs);
+
+  return (
+    <span className={cn("tabular-nums", !compact && "font-mono font-semibold")}>
+      {formatElapsed(elapsed)}
+    </span>
+  );
+}
+
+export function ActiveTimer({
+  status,
+  since,
+  breakStartedAt = null,
+  breakMinutes = 0,
+  breakLabel = null,
+}: {
+  status: CrmTimerStatus | "idle";
+  since: string | null;
+  breakStartedAt?: string | null;
+  breakMinutes?: number;
+  breakLabel?: string | null;
+}) {
+  const [now, setNow] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (status !== "working" && status !== "on_break") {
+      setNow(null);
+      return;
+    }
+    const update = () => setNow(Date.now());
+    update();
+    const interval = window.setInterval(update, 1000);
+    return () => window.clearInterval(interval);
+  }, [status, since, breakStartedAt]);
+
+  const clockInMs = since ? new Date(since).getTime() : Number.NaN;
+  const breakStartMs = breakStartedAt
+    ? new Date(breakStartedAt).getTime()
+    : Number.NaN;
+  const workEndMs =
+    status === "on_break" && Number.isFinite(breakStartMs)
+      ? breakStartMs
+      : now;
+  const workedMs =
+    workEndMs !== null && Number.isFinite(clockInMs)
+      ? workEndMs - clockInMs - breakMinutes * 60_000
+      : 0;
+  const currentBreakMs =
+    status === "on_break" && now !== null && Number.isFinite(breakStartMs)
+      ? now - breakStartMs
+      : 0;
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 text-sm">
+        <span
+          className={cn(
+            "relative flex h-2.5 w-2.5 rounded-full",
+            status === "working"
+              ? "bg-success"
+              : status === "on_break"
+                ? "bg-warning"
+                : "bg-muted-foreground/40",
+          )}
+        >
+          {status === "working" && (
+            <span className="absolute inset-0 animate-ping rounded-full bg-success opacity-50" />
+          )}
+        </span>
+        <Clock3 className="h-4 w-4 text-muted-foreground" />
+        <span>
+          {status === "working"
+            ? `Working since ${formatTime(since)}`
+            : status === "on_break"
+              ? `On ${breakLabel || "General break"}`
+              : "Not clocked in"}
+        </span>
+      </div>
+      {(status === "working" || status === "on_break") && (
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <div>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Work timer
+            </p>
+            <p className="font-mono text-2xl font-semibold tabular-nums tracking-tight">
+              {now === null ? "00:00:00" : formatElapsed(workedMs)}
+            </p>
+          </div>
+          {status === "on_break" && (
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-warning">
+                Break timer
+              </p>
+              <p className="font-mono text-lg font-semibold tabular-nums text-warning">
+                {now === null ? "00:00:00" : formatElapsed(currentBreakMs)}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -309,93 +373,193 @@ export function ProjectWorkControls({
   onStart,
   onStop,
 }: {
-  projects: any[];
-  tasks: any[];
-  activeEntry: any | null;
-  attendanceStatus?: string;
+  projects: CrmProject[];
+  tasks: CrmTask[];
+  activeEntry: CrmProjectWorkEntry | undefined;
+  attendanceStatus: CrmTeamMember["attendanceStatus"] | undefined;
   busy: boolean;
   onStart: (projectId: string, taskId: string | null, note: string) => void;
   onStop: () => void;
 }) {
-  const [selectedProject, setSelectedProject] = useState<string>(activeEntry?.projectId || "");
-  const [selectedTask, setSelectedTask] = useState<string>(activeEntry?.taskId || "");
-  const [note, setNote] = useState(activeEntry?.note || "");
+  const availableProjects = React.useMemo(
+    () => projects.filter((project) => project.status !== "completed"),
+    [projects],
+  );
+  const [projectId, setProjectId] = React.useState(
+    activeEntry?.projectId ?? availableProjects[0]?.id ?? "",
+  );
+  const availableTasks = React.useMemo(
+    () =>
+      tasks
+        .filter(
+          (task) => task.projectId === projectId && task.status !== "done",
+        )
+        .sort(compareTaskPriority),
+    [projectId, tasks],
+  );
+  const [taskId, setTaskId] = React.useState(activeEntry?.taskId ?? "");
+  const [note, setNote] = React.useState("");
+  const [now, setNow] = React.useState<number | null>(null);
 
-  const projectTasks = selectedProject
-    ? tasks.filter((t) => t.projectId === selectedProject)
-    : [];
+  React.useEffect(() => {
+    if (activeEntry?.projectId) {
+      setProjectId(activeEntry.projectId);
+    }
+  }, [activeEntry?.id, activeEntry?.projectId]);
 
-  if (activeEntry) {
+  React.useEffect(() => {
+    if (!availableProjects.some((project) => project.id === projectId)) {
+      setProjectId(availableProjects[0]?.id ?? "");
+    }
+  }, [availableProjects, projectId]);
+
+  React.useEffect(() => {
+    if (activeEntry?.taskId) {
+      setTaskId(activeEntry.taskId);
+    }
+  }, [activeEntry?.id, activeEntry?.taskId]);
+
+  React.useEffect(() => {
+    if (
+      availableTasks.length > 0 &&
+      !availableTasks.some((task) => task.id === taskId)
+    ) {
+      setTaskId(availableTasks[0]?.id ?? "");
+    }
+    if (availableTasks.length === 0 && taskId) {
+      setTaskId("");
+    }
+  }, [availableTasks, taskId]);
+
+  React.useEffect(() => {
+    if (!activeEntry) {
+      setNow(null);
+      return;
+    }
+    const update = () => setNow(Date.now());
+    update();
+    const interval = window.setInterval(update, 1000);
+    return () => window.clearInterval(interval);
+  }, [activeEntry]);
+
+  const canTrack = attendanceStatus === "working";
+  const isSameFocus =
+    activeEntry?.projectId === projectId &&
+    (activeEntry.taskId ?? "") === taskId;
+  const elapsed = activeEntry
+    ? Math.max(
+        0,
+        (now ?? new Date(activeEntry.startedAt).getTime()) -
+          new Date(activeEntry.startedAt).getTime(),
+      )
+    : 0;
+
+  if (availableProjects.length === 0) {
     return (
-      <div className="space-y-3">
-        <div className="rounded-lg bg-blue-50 p-3">
-          <p className="text-sm font-medium text-blue-900">
-            Working on {activeEntry.projectName}
-            {activeEntry.taskTitle && ` · ${activeEntry.taskTitle}`}
-          </p>
-          {activeEntry.note && <p className="text-xs text-blue-700 mt-1">{activeEntry.note}</p>}
-        </div>
-        <button
-          disabled={busy}
-          onClick={onStop}
-          className="w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-        >
-          Stop project work
-        </button>
+      <div className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+        No active project is assigned to this login yet.
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <select
-        value={selectedProject}
-        onChange={(e) => {
-          setSelectedProject(e.target.value);
-          setSelectedTask("");
-        }}
-        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-      >
-        <option value="">Select a project</option>
-        {projects.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
+    <div className="space-y-4">
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <FolderKanban className="h-4 w-4" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">
+            {activeEntry
+              ? activeEntry.taskTitle || activeEntry.projectName
+              : "Choose your project and task"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {activeEntry
+              ? `Focused since ${formatTime(activeEntry.startedAt)} · ${formatElapsed(elapsed)}`
+              : canTrack
+                ? "Start a task timer to show your manager what you are working on."
+                : attendanceStatus === "on_break"
+                  ? "Resume your attendance timer before choosing a project."
+                  : "Clock in before starting project work."}
+          </p>
+          {activeEntry?.note && (
+            <p className="mt-1 truncate text-xs text-muted-foreground">
+              Note: {activeEntry.note}
+            </p>
+          )}
+        </div>
+      </div>
 
-      {projectTasks.length > 0 && (
-        <select
-          value={selectedTask}
-          onChange={(e) => setSelectedTask(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+      <div className="grid gap-2 md:grid-cols-[minmax(170px,0.8fr)_minmax(190px,1fr)_minmax(180px,1fr)_auto]">
+        <Select value={projectId} onValueChange={setProjectId}>
+          <SelectTrigger aria-label="Project to work on">
+            <SelectValue placeholder="Select project" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableProjects.map((project) => (
+              <SelectItem key={project.id} value={project.id}>
+                {project.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={taskId || "__project__"}
+          onValueChange={(value) =>
+            setTaskId(value === "__project__" ? "" : value)
+          }
         >
-          <option value="">Select a task (optional)</option>
-          {projectTasks.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.title}
-            </option>
-          ))}
-        </select>
-      )}
-
-      <textarea
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        placeholder="Add a note (optional)"
-        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
-        rows={2}
-      />
-
-      <button
-        disabled={busy || !selectedProject}
-        onClick={() =>
-          onStart(selectedProject, selectedTask || null, note)
-        }
-        className="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-      >
-        Start project work
-      </button>
+          <SelectTrigger aria-label="Task to work on">
+            <SelectValue placeholder="Select task" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableTasks.length === 0 ? (
+              <SelectItem value="__project__">General project work</SelectItem>
+            ) : (
+              availableTasks.map((task) => (
+                <SelectItem key={task.id} value={task.id}>
+                  {task.title}
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+        <Input
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          maxLength={300}
+          placeholder="What are you working on? (optional)"
+          aria-label="Project work note"
+        />
+        <div className="flex gap-2">
+          <Button
+            disabled={
+              busy ||
+              !canTrack ||
+              !projectId ||
+              (availableTasks.length > 0 && !taskId) ||
+              isSameFocus
+            }
+            onClick={() => onStart(projectId, taskId || null, note)}
+          >
+            <Play className="h-4 w-4" />
+            {activeEntry ? "Switch" : "Start"}
+          </Button>
+          {activeEntry && (
+            <Button variant="secondary" disabled={busy} onClick={onStop}>
+              <Square className="h-4 w-4" /> Stop
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
+
+export const taskStatusOptions: { value: CrmTaskStatus; label: string }[] = [
+  { value: "todo", label: "To do" },
+  { value: "in_progress", label: "In progress" },
+  { value: "review", label: "In review" },
+  { value: "done", label: "Done" },
+];

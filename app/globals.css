@@ -1,26 +1,343 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  ───────────────────────────────────────────────────────────────────────────
+  LUMINIOR — Operations Design System
+  ───────────────────────────────────────────────────────────────────────────
+  A restrained, warm palette built on four brand pillars:
+
+    Obsidian      #100E0C   primary canvas
+    Noir          #1A1815   secondary surface
+    Luminior Gold #D4A638   brand accent
+    Cream         #F2EFE5   primary text / light canvas
+
+  Components reference semantic variables so the full product can be tuned
+  here. Gold is reserved for brand and interaction; warm neutrals carry the
+  interface structure, and status colors retain their operational meaning.
+  ───────────────────────────────────────────────────────────────────────────
+*/
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --radius: 0.75rem;
+
+  /*
+    Total vertical chrome above/below a page's content: navbar (h-14 = 3.5rem)
+    + AppShell's pt-6 (1.5rem) + pb-10 (2.5rem). Full-height pages (e.g. the
+    AI chat transcript) size themselves against this instead of guessing.
+    Keep in sync with AppShell's container padding and the Navbar height.
+  */
+  --app-chrome: 7.5rem;
+
+  /* ── Raw brand pigments (single source of truth) ── */
+  /* Core brand palette. Legacy gold names remain as compatibility aliases. */
+  --brand: #d4a638;
+  --brand-soft: #e4c46b;
+  --brand-bright: #eecd7a;
+  --obsidian: #100e0c;
+  --noir: #1a1815;
+  --noir-elevated: #211e19;
+  --gold: var(--brand);
+  --gold-soft: var(--brand-soft);
+  --gold-bright: var(--brand-bright);
+  --cream: #f2efe5;
+
+  /* ════════════ WARM DAYLIGHT ════════════ */
+  --background: #f6f7f8;
+  --foreground: #211e19;
+  --card: #ffffff;
+  --card-foreground: #211e19;
+  --popover: #ffffff;
+  --popover-foreground: #211e19;
+
+  --primary: var(--brand);
+  --primary-foreground: #17130d;
+  --secondary: #f1f2f3;
+  --secondary-foreground: #302b23;
+  --muted: #f1f2f4;
+  --muted-foreground: #6b6b68;
+  --accent: #f3ead2;
+  --accent-foreground: #765816;
+  --destructive: #b9413a;
+  --destructive-foreground: #ffffff;
+
+  --success: #47745a;
+  --warning: #9a6b19;
+
+  /* Neutral headings keep dense operational pages easy to scan. */
+  --heading: #211e19;
+
+  --border: #e1e2e4;
+  --input: #d1d3d6;
+  --ring: var(--brand);
+
+  /* Warm chart ramp with one restrained sage counterpoint. */
+  --chart-1: #b8881f;
+  --chart-2: #d4a638;
+  --chart-3: #8f6d2d;
+  --chart-4: #64715d;
+  --chart-5: #665e50;
+}
+
+.dark {
+  /* ════════════ OBSIDIAN DARK ════════════ */
+  --background: var(--obsidian);
+  --foreground: var(--cream);
+  --card: var(--noir);
+  --card-foreground: var(--cream);
+  --popover: var(--noir-elevated);
+  --popover-foreground: var(--cream);
+
+  --primary: var(--gold);
+  --primary-foreground: var(--obsidian);
+  --secondary: var(--noir-elevated);
+  --secondary-foreground: var(--cream);
+  --muted: var(--noir-elevated);
+  --muted-foreground: #aaa397;
+  --accent: #2c271d;
+  --accent-foreground: #e4c46b;
+  --destructive: #d56a61;
+  --destructive-foreground: var(--cream);
+
+  --success: #74a184;
+  --warning: #e4c46b;
+
+  /* Headings remain neutral; gold is reserved for emphasis and actions. */
+  --heading: var(--cream);
+
+  /* Neutral borders separate surfaces without outlining every element. */
+  --border: #39342b;
+  --input: #4a4336;
+  --ring: var(--gold);
+
+  /* Slightly brighter data colors maintain contrast on dark surfaces. */
+  --chart-1: #d4a638;
+  --chart-2: #e4c46b;
+  --chart-3: #a87d2e;
+  --chart-4: #829079;
+  --chart-5: #8c8170;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-gold: var(--gold);
+  --color-heading: var(--heading);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Inter is the single typeface for body, display, identifiers and code. */
+  --font-sans: var(--font-luminior-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-sans);
+  --font-mono: var(--font-sans);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Soft elevation for cards and floating surfaces. */
+  --shadow-luxe-sm: 0 1px 2px oklch(0 0 0 / 0.28);
+  --shadow-luxe: 0 8px 28px -10px oklch(0 0 0 / 0.5);
+  --shadow-luxe-lg: 0 24px 60px -18px oklch(0 0 0 / 0.62);
+  --shadow-gold: 0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent),
+    0 10px 32px -12px color-mix(in srgb, var(--primary) 24%, transparent);
+
+  /* Animation presets */
+  --ease-luxe: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    color-scheme: light;
+    scroll-behavior: smooth;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+    letter-spacing: -0.005em;
+    transition: background-color 0.4s var(--ease-luxe), color 0.4s var(--ease-luxe);
+  }
+
+  /* Headings use the same professional sans-serif with stronger hierarchy. */
+  h1, h2, h3 {
+    font-family: var(--font-sans);
+    letter-spacing: -0.02em;
+    font-weight: 600;
+    color: var(--heading);
+  }
+
+  /* A faint brand vignette adds depth without tinting the work surface. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: none;
+    pointer-events: none;
+  }
+
+  .dark body::before {
+    background:
+      radial-gradient(60rem 60rem at 100% -8%, color-mix(in srgb, var(--primary) 7%, transparent), transparent 62%);
+  }
+
+  :focus-visible {
+    outline: none;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--primary) 24%, transparent);
+    color: var(--foreground);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /*
+    Frosted surfaces for cards, navigation, popovers and tooltips.
+  */
+  .glass {
+    background-color: var(--card);
+    backdrop-filter: blur(16px) saturate(135%);
+    -webkit-backdrop-filter: blur(16px) saturate(135%);
+    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  }
+
+  .dark .glass {
+    background-color: color-mix(in oklch, var(--card) 82%, transparent);
+  }
+
+  .glass-strong {
+    background-color: color-mix(in oklch, var(--popover) 90%, transparent);
+    backdrop-filter: blur(22px) saturate(155%);
+    -webkit-backdrop-filter: blur(22px) saturate(155%);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-luxe);
+  }
+}
+
+@layer utilities {
+  /* ── Reusable presentation utilities ── */
+
+  /* Editorial display type */
+  .font-display {
+    font-family: var(--font-sans);
+    letter-spacing: -0.02em;
+  }
+
+  /* Legacy class retained; KPI values now use the neutral foreground. */
+  .text-gold-gradient {
+    color: var(--foreground);
+  }
+
+  /* Legacy class retained as a semantic border alias. */
+  .border-gold-faint {
+    border-color: var(--border);
+  }
+
+  /* Brand-colored focus glow for interactive elements. */
+  .ring-gold-glow {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+  }
+
+  .shadow-luxe {
+    box-shadow: var(--shadow-luxe);
+  }
+  .shadow-luxe-lg {
+    box-shadow: var(--shadow-luxe-lg);
+  }
+
+  /* Subtle brand-tinted skeleton shimmer. */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--primary) 9%, transparent),
+      transparent
+    );
+    animation: luminior-shimmer 1.8s var(--ease-luxe) infinite;
+  }
+
+  /* Entrance preset */
+  .animate-rise {
+    animation: luminior-rise 0.5s var(--ease-luxe) both;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent);
+    border-radius: 9999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in srgb, var(--muted-foreground) 55%, transparent);
+  }
+}
+
+@keyframes luminior-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes luminior-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

@@ -1,3 +1,5 @@
-export default function LeavePage() {
-  return <div>Leave page</div>;
+import { CrmLeave } from "@/features/crm/components/crm-leave";
+
+export default function CrmLeavePage() {
+  return <CrmLeave />;
 }

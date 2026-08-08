@@ -1,19 +1,45 @@
-type PageHeaderProps = {
-  eyebrow?: string;
+"use client";
+
+import { motion } from "framer-motion";
+
+export function PageHeader({
+  title,
+  description,
+  eyebrow,
+  actions,
+}: {
   title: string;
   description?: string;
+  eyebrow?: string;
   actions?: React.ReactNode;
-};
-
-export function PageHeader({ eyebrow, title, description, actions }: PageHeaderProps) {
+}) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        {eyebrow ? <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">{eyebrow}</p> : null}
-        <h2 className="mt-1 text-2xl font-semibold text-slate-900">{title}</h2>
-        {description ? <p className="mt-2 max-w-2xl text-sm text-slate-600">{description}</p> : null}
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="select-none"
+    >
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          {eyebrow && (
+            <p className="mb-0.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              {eyebrow}
+            </p>
+          )}
+          <h1 className="font-display truncate text-xl font-semibold leading-tight tracking-tight text-heading">
+            {title}
+          </h1>
+          {description && (
+            <p className="mt-0.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              {description}
+            </p>
+          )}
+        </div>
+        {actions && (
+          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+        )}
       </div>
-      {actions ? <div>{actions}</div> : null}
-    </div>
+    </motion.div>
   );
 }

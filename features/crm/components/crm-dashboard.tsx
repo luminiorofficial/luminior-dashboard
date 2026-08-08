@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Activity,
   CalendarCheck,
@@ -9,10 +10,15 @@ import {
   FolderKanban,
   Users,
 } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState, PageTransition } from "@/components/states";
 import { Button } from "@/components/ui/button";
+import { useCrm, useCrmAction } from "@/hooks/use-crm";
+import { CrmLoadState } from "./crm-load-state";
 import {
+  ActiveTimer,
   CrmBadge,
   CrmProgress,
   CrmStatCard,
@@ -20,79 +26,62 @@ import {
   formatDate,
   formatMinutes,
   formatTime,
-  ActiveTimer,
-  TimerControls,
+  FocusTimer,
   ProjectWorkControls,
   TaskPriorityBadge,
+  TimerControls,
 } from "./crm-ui";
 import { CreateMemberDialog, CreateProjectDialog } from "./crm-dialogs";
-import type {
-  CrmSnapshot,
-  CrmTeamMember,
-  CrmProject,
-  CrmTask,
-  CrmTimeEntry,
-  CrmProjectWorkEntry,
-} from "@/features/crm/types";
 
-interface CrmDashboardProps {
-  data?: CrmSnapshot | null;
-  isLoading?: boolean;
-  error?: Error | null;
-}
-
-export function CrmDashboard({
-  data,
-  isLoading,
-  error,
-}: CrmDashboardProps = {}) {
+export function CrmDashboard() {
+  const crm = useCrm();
+  const action = useCrmAction();
   const [pendingTimerAction, setPendingTimerAction] = useState<
     "clock_in" | "end_break" | "clock_out" | null
   >(null);
+  const data = crm.data;
 
-  if (isLoading) {
+  if (!data) {
+    const isManager = true;
     return (
-      <div className="space-y-6">
-        <PageHeader
-          eyebrow="CRM"
-          title="Dashboard"
-          description="Track projects, tasks, and team activity."
-        />
-        <div className="animate-pulse space-y-4">
-          <div className="h-32 bg-slate-200 rounded-lg" />
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-24 bg-slate-200 rounded-lg" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          eyebrow="CRM"
-          title="Dashboard"
-          description="Track projects, tasks, and team activity."
-        />
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-6">
-            <p className="text-sm text-red-700">
-              {error?.message || "Failed to load CRM data"}
-            </p>
+      <PageTransition className="space-y-6">
+        <Card className="border-dashed border-primary/30 bg-primary/[0.02]">
+          <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-primary">
+                CRM is ready
+              </p>
+              <p className="mt-2 text-lg font-semibold text-foreground">
+                Start building your team and delivery pipeline
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                This workspace is empty. Add your first team member and project to begin tracking work.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <CreateMemberDialog brands={[]} />
+              <CreateProjectDialog team={[]} />
+            </div>
           </CardContent>
         </Card>
-      </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <CrmStatCard label="Active projects" value={0} detail="0 total projects" icon={FolderKanban} accent />
+          <CrmStatCard label="Total team members" value={0} detail="0 active members" icon={Users} />
+          <CrmStatCard label="Open tasks" value={0} detail="0 completed" icon={CheckCircle2} />
+          <CrmStatCard label="Working now" value={0} detail="0 active accounts" icon={Activity} />
+          <CrmStatCard label="Leave requests" value={0} detail="Awaiting approval" icon={CalendarCheck} />
+        </div>
+      </PageTransition>
     );
   }
 
   const isManager = data.role === "manager";
   const isPoc = data.pocProjectIds.length > 0;
   const me = data.team.find((member) => member.id === data.currentUserId);
-  const myTasks = data.tasks.filter((task) => task.assigneeId === data.currentUserId);
+  const myTasks = data.tasks.filter(
+    (task) => task.assigneeId === data.currentUserId,
+  );
   const activeProjects = data.projects.filter((project) => project.status === "active");
   const activePocProjects = activeProjects.filter((project) =>
     data.pocProjectIds.includes(project.id),
@@ -120,49 +109,86 @@ export function CrmDashboard({
     (entry) => entry.userId === data.currentUserId && entry.status === "active",
   );
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="CRM"
-        title={isManager ? "Dashboard" : "My workspace"}
-        description={
-          isManager
-            ? "Track projects, tasks, and team activity."
-            : "Your CRM workspace overview and quick actions."
-        }
-      />
+  async function timer(
+    timerAction: "clock_in" | "end_break" | "clock_out",
+  ) {
+    setPendingTimerAction(timerAction);
+    try {
+      await action.mutateAsync({ action: "timer", timerAction });
+      toast.success(
+        timerAction === "clock_in"
+          ? "Work timer started"
+          : timerAction === "clock_out"
+            ? "Work timer stopped"
+            : "Back to work",
+      );
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  }
 
+  async function startProjectWork(
+    projectId: string,
+    taskId: string | null,
+    note: string,
+  ) {
+    try {
+      await action.mutateAsync({
+        action: "start_project_work",
+        projectId,
+        taskId,
+        note,
+      });
+      toast.success(myActiveProjectEntry ? "Project switched" : "Project timer started");
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setPendingTimerAction(null);
+    }
+  }
+
+  async function stopProjectWork() {
+    try {
+      await action.mutateAsync({ action: "stop_project_work" });
+      toast.success("Project timer stopped");
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  }
+
+  return (
+    <PageTransition className="space-y-6">
       {!isManager && (
         <>
-          <Card className="overflow-hidden border-blue-200">
+          <Card className="overflow-hidden border-primary/25">
             <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-blue-600">
+                <p className="text-xs font-medium uppercase tracking-wider text-primary">
                   My workday
                 </p>
                 <div className="mt-2">
                   <ActiveTimer
-                    status={myActiveEntry?.status ?? "stopped"}
+                    status={myActiveEntry?.status ?? "idle"}
                     since={myActiveEntry?.clockIn ?? null}
-                    breakStartedAt={myActiveEntry?.breakStartedAt ?? null}
-                    breakMinutes={myActiveEntry?.breakMinutes ?? 0}
-                    breakLabel={myActiveEntry?.breakLabel ?? null}
+                    breakStartedAt={myActiveEntry?.breakStartedAt}
+                    breakMinutes={myActiveEntry?.breakMinutes}
+                    breakLabel={myActiveEntry?.breakLabel}
                   />
                 </div>
-                <p className="mt-1.5 text-xs text-slate-600">
+                <p className="mt-1.5 text-xs text-muted-foreground">
                   {formatMinutes(me?.workedMinutesToday ?? 0)} recorded today
                 </p>
               </div>
               <TimerControls
-                status={myActiveEntry?.status ?? "stopped"}
-                busy={false}
+                status={myActiveEntry?.status ?? "idle"}
+                busy={action.isPending || pendingTimerAction !== null}
                 pendingAction={pendingTimerAction}
-                onAction={() => {}}
+                onAction={(value) => void timer(value)}
               />
             </CardContent>
           </Card>
 
-          <Card className="border-blue-200">
+          <Card className="border-primary/25">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">My project focus</CardTitle>
             </CardHeader>
@@ -172,40 +198,40 @@ export function CrmDashboard({
                 tasks={myTasks}
                 activeEntry={myActiveProjectEntry}
                 attendanceStatus={me?.attendanceStatus}
-                busy={false}
-                onStart={() => {}}
-                onStop={() => {}}
+                busy={action.isPending}
+                onStart={(projectId, taskId, note) =>
+                  void startProjectWork(projectId, taskId, note)
+                }
+                onStop={() => void stopProjectWork()}
               />
             </CardContent>
           </Card>
         </>
       )}
 
-      {isManager &&
-        (data.team.length === 0 ||
-          data.projects.length === 0 ||
-          data.tasks.length === 0) && (
-          <Card className="border-dashed border-blue-300 bg-blue-50">
-            <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-blue-600">
-                  CRM is ready
-                </p>
-                <p className="mt-2 text-lg font-semibold text-slate-900">
-                  Start building your team and delivery pipeline
-                </p>
-                <p className="mt-1 text-sm text-slate-600">
-                  This workspace is empty. Add your first team member and project to begin
-                  tracking work.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <CreateMemberDialog brands={data.brands} />
-                <CreateProjectDialog team={data.team} />
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      {(isManager && (data.team.length === 0 || data.projects.length === 0 || data.tasks.length === 0)) && (
+        <Card className="border-dashed border-primary/30 bg-primary/[0.02]">
+          <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-primary">
+                CRM is ready
+              </p>
+              <p className="mt-2 text-lg font-semibold text-foreground">
+                Start building your team and delivery pipeline
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {data.team.length === 0 && data.projects.length === 0 && data.tasks.length === 0
+                  ? "This workspace is empty. Add your first team member and project to begin tracking work."
+                  : "Your CRM has been created, but one or more sections are still empty. Add the missing pieces to get visibility into delivery."}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <CreateMemberDialog brands={data.brands} />
+              <CreateProjectDialog team={data.team} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div
         className={`grid gap-4 sm:grid-cols-2 ${
@@ -234,95 +260,147 @@ export function CrmDashboard({
           icon={CheckCircle2}
         />
         <CrmStatCard
-          label="Working now"
-          value={workingNow.length}
-          detail={`${activeMembers.length} active`}
-          icon={Activity}
+          label={isManager ? "Working now" : isPoc ? "Needs attention" : "Hours today"}
+          value={
+            isManager
+              ? workingNow.length
+              : isPoc
+                ? attentionTasks.length
+                : formatMinutes(me?.workedMinutesToday ?? 0)
+          }
+          detail={
+            isManager
+              ? `${activeMembers.length} active accounts`
+              : isPoc
+                ? `${attentionTasks.filter((task) => task.isBlocked).length} blocked`
+                : "Live attendance"
+          }
+          icon={isManager ? Activity : isPoc ? CheckCircle2 : Clock3}
         />
-        {isManager && (
-          <CrmStatCard
-            label="Leave requests"
-            value={pendingLeave.length}
-            detail="Awaiting approval"
-            icon={CalendarCheck}
-          />
-        )}
+        <CrmStatCard
+          label={isManager ? "Leave requests" : "My leave requests"}
+          value={pendingLeave.length}
+          detail="Awaiting approval"
+          icon={CalendarCheck}
+        />
       </div>
 
-      {attentionTasks.length > 0 && (
-        <Card className="border-amber-200">
-          <CardHeader>
-            <CardTitle className="text-base">Tasks needing attention</CardTitle>
+      <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
+            <CardTitle className="text-base">
+              {isManager ? "Priority tasks" : isPoc ? "POC priorities" : "My next tasks"}
+            </CardTitle>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/crm/tasks">View all</Link>
+            </Button>
           </CardHeader>
           <CardContent className="space-y-3">
-            {attentionTasks.slice(0, 5).map((task) => (
+            {openTasks.slice(0, 5).map((task) => (
               <div
                 key={task.id}
-                className="rounded-lg border border-amber-200 bg-amber-50 p-3"
+                className={
+                  task.activeFocusStartedAt
+                    ? "rounded-lg border border-primary/50 bg-primary/[0.07] p-3 shadow-sm ring-1 ring-primary/15"
+                    : "rounded-lg border border-border bg-background/30 p-3"
+                }
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-amber-900">{task.title}</p>
-                    <p className="text-xs text-amber-700">
-                      {task.projectName} · {task.assigneeName || "Unassigned"}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{task.title}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {task.projectName}
+                      {isManager && task.assigneeName ? ` · ${task.assigneeName}` : ""}
                     </p>
-                  </div>
-                  <div className="flex gap-2">
-                    {task.isBlocked && (
-                      <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
-                        Blocked
-                      </span>
-                    )}
-                    {task.status === "review" && (
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                        In review
-                      </span>
+                    {task.activeFocusStartedAt && (
+                      <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs font-medium text-primary">
+                        <span className="relative flex h-2 w-2 rounded-full bg-primary">
+                          <span className="absolute inset-0 animate-ping rounded-full bg-primary opacity-50" />
+                        </span>
+                        <span>Started {formatTime(task.activeFocusStartedAt)}</span>
+                        <span>·</span>
+                        <FocusTimer startedAt={task.activeFocusStartedAt} compact />
+                      </p>
                     )}
                   </div>
+                  <TaskPriorityBadge priority={task.priority} />
+                </div>
+                <CrmProgress value={task.progress} className="mt-3" />
+                <div className="mt-2 flex items-center justify-between">
+                  <CrmBadge value={task.status} />
+                  <span className="text-xs text-muted-foreground">
+                    {formatDate(task.dueDate)}
+                  </span>
                 </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Recent tasks</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {openTasks.slice(0, 3).map((task) => (
-              <div key={task.id} className="flex items-start justify-between gap-2 pb-2 border-b last:border-0">
-                <div>
-                  <p className="font-medium text-sm">{task.title}</p>
-                  <p className="text-xs text-slate-600">Due {formatDate(task.dueDate || "")}</p>
-                </div>
-                <TaskPriorityBadge priority={task.priority} />
-              </div>
-            ))}
+            {openTasks.length === 0 && (
+              <EmptyState
+                title="All caught up"
+                message="There are no open tasks in your current view."
+                icon={CheckCircle2}
+              />
+            )}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Team activity</CardTitle>
+          <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
+            <CardTitle className="text-base">
+              {isManager ? "Team right now" : "Project progress"}
+            </CardTitle>
+            <Button asChild variant="ghost" size="sm">
+              <Link href={isManager ? "/crm/team" : "/crm/projects"}>View all</Link>
+            </Button>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {workingNow.slice(0, 3).map((member) => (
-              <div key={member.id} className="flex items-center justify-between pb-2 border-b last:border-0">
-                <div>
-                  <p className="font-medium text-sm">{member.fullName || member.email}</p>
-                  <p className="text-xs text-slate-600">
-                    {member.currentProjectName || "Idle"}
-                  </p>
-                </div>
-                <CrmBadge value={member.attendanceStatus} />
-              </div>
-            ))}
+          <CardContent className="space-y-3">
+            {isManager
+              ? data.team.slice(0, 7).map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between gap-3 border-b border-border/60 pb-3 last:border-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {member.fullName || member.email}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {member.currentProjectName
+                          ? `Working on ${member.currentTaskTitle || member.currentProjectName}`
+                          : member.jobTitle ||
+                            (member.role === "admin" || member.role === "superadmin"
+                              ? "Manager"
+                              : "Team member")}
+                      </p>
+                    </div>
+                    <CrmBadge value={member.attendanceStatus} />
+                  </div>
+                ))
+              : data.projects.slice(0, 6).map((project) => (
+                  <div key={project.id} className="space-y-2 border-b border-border/60 pb-3 last:border-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-sm font-medium">{project.name}</p>
+                      <CrmBadge value={project.status} />
+                    </div>
+                    <CrmProgress value={project.progress} />
+                  </div>
+                ))}
+            {(isManager ? data.team : data.projects).length === 0 && (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No data yet.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
-    </div>
+
+      {isManager && (
+        <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          <Users className="mr-2 inline h-4 w-4" />
+          Managers see the complete workspace. Team members only see projects and
+          tasks assigned to their own login.
+        </div>
+      )}
+    </PageTransition>
   );
 }

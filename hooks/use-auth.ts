@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { clearStoredSession, getStoredSession, persistSession } from "@/lib/auth";
+import { useCallback } from "react";
+import { signIn as nextSignIn, signOut as nextSignOut, useSession } from "next-auth/react";
+import { apiMutate } from "@/lib/fetcher";
 
 export type AuthUser = {
   id: string;
@@ -11,70 +12,56 @@ export type AuthUser = {
 };
 
 export function useAuth() {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const sessionResult = useSession() ?? {};
+  const { data: session, status } = sessionResult as {
+    data?: {
+      user?: {
+        id?: string;
+        name?: string | null;
+        email?: string | null;
+        role?: string | null;
+      } | null;
+    } | null;
+    status?: string;
+  };
 
-  useEffect(() => {
-    const session = getStoredSession();
-    setUser(session);
-    setLoading(false);
-  }, []);
+  const user = session?.user
+    ? {
+        id: session.user.id,
+        name: session.user.name ?? session.user.email ?? "User",
+        email: session.user.email ?? "",
+        role: session.user.role ?? "user",
+      }
+    : null;
+
+  const loading = status === "loading";
 
   const signIn = useCallback(async (email: string, password: string) => {
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        return false;
-      }
-
-      const authenticated = await response.json();
-      persistSession(authenticated);
-      setUser(authenticated);
-      return true;
-    } catch {
-      return false;
-    }
+    const result = await nextSignIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    });
+    return Boolean(result?.ok);
   }, []);
 
   const signUp = useCallback(async (fullName: string, email: string, password: string) => {
-    try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, email, password }),
-      });
-
-      if (!response.ok) {
-        return false;
-      }
-
-      const created = await response.json();
-      persistSession({
-        id: created.id,
-        name: fullName,
-        email,
-        role: "user",
-      });
-      setUser({
-        id: created.id,
-        name: fullName,
-        email,
-        role: "user",
-      });
-      return true;
-    } catch {
+    const created = await apiMutate<{ id: string }>("POST", "/api/auth/register", {
+      body: { fullName, email, password },
+    });
+    if (!created?.id) {
       return false;
     }
+    const result = await nextSignIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    });
+    return Boolean(result?.ok);
   }, []);
 
   const signOut = useCallback(() => {
-    clearStoredSession();
-    setUser(null);
+    void nextSignOut({ redirectTo: "/sign-in" });
   }, []);
 
   return { user, loading, signIn, signUp, signOut };
