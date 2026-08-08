@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, ClipboardCheck } from "@/lib/lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardCheck } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -154,7 +154,7 @@ function TaskCard({
               <div className="flex gap-2">
                 <Select
                   value={status}
-                  onValueChange={(value) => {
+                  onValueChange={(value: string) => {
                     const next = value as CrmTaskStatus;
                     setStatus(next);
                     if (next === "done") {
@@ -201,7 +201,7 @@ function TaskCard({
                   max={100}
                   step={5}
                   value={progress}
-                  onChange={(event) => setProgress(Number(event.target.value))}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setProgress(Number(event.target.value))}
                   className="mt-1 block w-full accent-blue-600"
                 />
               </label>
@@ -220,7 +220,7 @@ function TaskCard({
               {isBlocked && (
                 <Textarea
                   value={blockerReason}
-                  onChange={(event) => setBlockerReason(event.target.value)}
+                  onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setBlockerReason(event.target.value)}
                   placeholder="What is blocking delivery?"
                   className="mt-2 min-h-16 text-xs"
                   maxLength={600}
@@ -228,7 +228,7 @@ function TaskCard({
               )}
               <Textarea
                 value={note}
-                onChange={(event) => setNote(event.target.value)}
+                onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setNote(event.target.value)}
                 placeholder="Add an update note"
                 className="mt-2 min-h-16 text-xs"
                 maxLength={600}
@@ -344,7 +344,7 @@ export function CrmTasks({
               </SelectContent>
             </Select>
 
-            <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
+            <Select value={filterStatus} onValueChange={(v: string) => setFilterStatus(v as any)}>
               <SelectTrigger className="sm:w-48">
                 <SelectValue placeholder="All statuses" />
               </SelectTrigger>

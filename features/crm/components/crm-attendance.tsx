@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Clock3, MapPin } from "@/lib/lucide-react";
+import { CalendarDays, Clock3, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

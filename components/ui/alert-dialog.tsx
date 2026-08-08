@@ -43,7 +43,7 @@ export function AlertDialogFooter({ children, ...props }: any) {
 }
 
 export function AlertDialogAction({ children, variant, disabled, ...props }: any) {
-  const variants = {
+  const variants: Record<string, string> = {
     destructive: "bg-red-600 text-white hover:bg-red-700",
     default: "bg-blue-600 text-white hover:bg-blue-700",
     secondary: "bg-gray-200 text-gray-900 hover:bg-gray-300",

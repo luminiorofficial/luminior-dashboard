@@ -10,7 +10,7 @@ import {
   ListChecks,
   UserRoundCheck,
   Users,
-} from "@/lib/lucide-react";
+} from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock3, Mail, Power, RotateCcw, Users } from "@/lib/lucide-react";
+import { Clock3, Mail, Power, RotateCcw, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -94,7 +94,7 @@ export function CrmTeam({
           );
           return pocProjects.length > 0;
         })
-      : [data.team.find((m) => m.id === data.currentUserId)].filter(Boolean);
+      : data.team.filter((m) => m.id === data.currentUserId);
 
   return (
     <div className="space-y-6">
