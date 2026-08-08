@@ -6,6 +6,5 @@ export * from "./components/crm-attendance";
 export * from "./components/crm-ui";
 export * from "./components/crm-dialogs";
 export * from "./components/crm-load-state";
-export * from "./lib/crm-types";
-export * from "./lib/crm-utils";
+export * from "./hooks/use-crm";
 export * from "./types";
