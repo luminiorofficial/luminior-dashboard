@@ -1,3 +1,5 @@
-export default function TeamPage() {
-  return <div>Team page</div>;
+import { CrmTeam } from "@/features/crm/components/crm-team";
+
+export default function CrmTeamPage() {
+  return <CrmTeam />;
 }

@@ -1,3 +1,5 @@
-export default function AttendancePage() {
-  return <div>Attendance page</div>;
+import { CrmAttendance } from "@/features/crm/components/crm-attendance";
+
+export default function CrmAttendancePage() {
+  return <CrmAttendance />;
 }

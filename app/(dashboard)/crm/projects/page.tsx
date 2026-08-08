@@ -1,3 +1,5 @@
-export default function ProjectsPage() {
-  return <div>Projects page</div>;
+import { CrmProjects } from "@/features/crm/components/crm-projects";
+
+export default function CrmProjectsPage() {
+  return <CrmProjects />;
 }

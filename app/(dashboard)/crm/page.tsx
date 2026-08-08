@@ -1,3 +1,5 @@
-export default function CRMPage() {
-  return <div>CRM dashboard overview</div>;
+import { redirect } from "next/navigation";
+
+export default function CrmPage() {
+  redirect("/crm/dashboard");
 }
