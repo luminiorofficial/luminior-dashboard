@@ -18,6 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useBootstrap } from "@/hooks/use-bootstrap";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MobileNav } from "@/components/mobile-nav";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -37,6 +38,10 @@ const baseNavItems = [
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, loading, signOut } = useAuth();
+  // Populates auth-store/company-store from /api/me — without this call
+  // neither store is ever hydrated, which broke Settings ("Loading your
+  // company…" forever) and the Users page's "is this my own row" check.
+  useBootstrap();
   const company = useCompanyStore((s) => s.company);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);/*  */
