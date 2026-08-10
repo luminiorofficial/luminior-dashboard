@@ -1,9 +1,20 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Link2 } from "lucide-react";
+import { Link2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +34,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useCrmAction, useCrmInviteLink } from "@/hooks/use-crm";
+import { useCrmAction, useCrmInviteLink, useRegenerateInviteLink } from "@/hooks/use-crm";
+import { FetchError } from "@/lib/fetcher";
 import type {
   CrmProject,
   CrmTask,
@@ -139,11 +151,16 @@ export function CreateMemberDialog() {
   );
 }
 
-/** Copy-to-clipboard invite link — anyone who signs up through it joins automatically. */
+/**
+ * Copy-to-clipboard invite link — anyone who signs up through it joins
+ * automatically. Never expires and has no limit on how many people can use
+ * it unless explicitly regenerated (which invalidates the old one).
+ */
 export function InviteLinkDialog() {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const invite = useCrmInviteLink(open);
+  const regenerate = useRegenerateInviteLink();
 
   async function copy() {
     if (!invite.data?.url) return;
@@ -153,6 +170,17 @@ export function InviteLinkDialog() {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Could not copy — select and copy the link manually.");
+    }
+  }
+
+  async function regenerateLink() {
+    try {
+      await regenerate.mutateAsync();
+      toast.success("Invite link regenerated", {
+        description: "The old link no longer works.",
+      });
+    } catch (error) {
+      toast.error(error instanceof FetchError ? error.message : "Could not regenerate link");
     }
   }
 
@@ -175,8 +203,9 @@ export function InviteLinkDialog() {
           <DialogTitle>Invite teammates</DialogTitle>
           <DialogDescription>
             Anyone who signs up through this link joins automatically as an
-            active team member — no manual setup needed. The link stays the
-            same every time you open this.
+            active team member — no manual setup needed. It stays the same
+            every time you open this and never expires on its own; anyone who
+            has the URL can still use it, so regenerate it if it ever leaks.
           </DialogDescription>
         </DialogHeader>
         {invite.isLoading ? (
@@ -195,7 +224,40 @@ export function InviteLinkDialog() {
             </Button>
           </div>
         )}
-        <DialogFooter>
+        <DialogFooter className="sm:justify-between">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                disabled={invite.isLoading || Boolean(invite.error) || regenerate.isPending}
+              >
+                <RefreshCw className="h-4 w-4" />
+                Regenerate
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Regenerate invite link?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  The current link will stop working immediately — anyone who
+                  still has it won&apos;t be able to sign up with it anymore.
+                  Team members who already joined are not affected.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  disabled={regenerate.isPending}
+                  onClick={() => void regenerateLink()}
+                >
+                  {regenerate.isPending ? "Regenerating…" : "Regenerate"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <Button type="button" variant="outline" onClick={() => setOpen(false)}>
             Close
           </Button>

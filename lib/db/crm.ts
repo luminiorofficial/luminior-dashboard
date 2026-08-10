@@ -1015,3 +1015,13 @@ export async function getOrCreateReferralLink(createdBy: string): Promise<string
   if (!row) throw new Error("Could not create invite link");
   return row.sp_get_or_create_referral_link;
 }
+
+/** Invalidates the current invite link and mints a fresh one — the old code stops working immediately. */
+export async function regenerateReferralLink(createdBy: string): Promise<string> {
+  const row = await queryOne<{ sp_regenerate_referral_link: string }>(
+    "SELECT sp_regenerate_referral_link($1)",
+    [createdBy],
+  );
+  if (!row) throw new Error("Could not regenerate invite link");
+  return row.sp_regenerate_referral_link;
+}

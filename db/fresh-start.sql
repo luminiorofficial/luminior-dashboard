@@ -316,7 +316,8 @@ BEGIN
         'fn_ensure_company_for_manager',
         'sp_get_user_by_email', 'sp_get_user_by_id', 'sp_list_users', 'sp_create_user',
         'sp_update_user_profile', 'sp_upsert_oauth_user', 'sp_update_user_role',
-        'sp_set_user_active', 'sp_get_or_create_referral_link', 'sp_register_user',
+        'sp_set_user_active', 'sp_get_or_create_referral_link', 'sp_regenerate_referral_link',
+        'sp_register_user',
         -- Orphaned from the old multi-brand/account-switching model — gone for good.
         'sp_link_user_account', 'sp_list_user_account_ids'
       ])
@@ -548,6 +549,33 @@ BEGIN
       IF v_code IS NOT NULL THEN
         RETURN v_code;
       END IF;
+    END;
+  END LOOP;
+END;
+$$;
+
+-- Invalidates a manager's current invite link and mints a fresh one — the
+-- old code stops working immediately (anyone still holding it gets
+-- INVALID_REFERRAL on the next registration attempt). Creates a row if the
+-- manager somehow doesn't have one yet, same as sp_get_or_create_referral_link.
+CREATE FUNCTION sp_regenerate_referral_link(p_created_by uuid)
+RETURNS text
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_code text;
+BEGIN
+  LOOP
+    v_code := encode(gen_random_bytes(9), 'hex');
+    BEGIN
+      UPDATE tbl_referral_links SET code = v_code, created_at = now() WHERE created_by = p_created_by;
+      IF FOUND THEN
+        RETURN v_code;
+      END IF;
+      INSERT INTO tbl_referral_links (code, created_by) VALUES (v_code, p_created_by);
+      RETURN v_code;
+    EXCEPTION WHEN unique_violation THEN
+      -- Random code collided with someone else's — loop and mint a new one.
     END;
   END LOOP;
 END;

@@ -23,6 +23,17 @@ export function useCrmInviteLink(enabled: boolean) {
   });
 }
 
+/** Invalidates the current invite link and replaces it with a fresh one. */
+export function useRegenerateInviteLink() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiMutate<{ code: string; url: string }>("POST", "/api/crm/invite"),
+    onSuccess: (result) => {
+      queryClient.setQueryData(["crm-invite"], result);
+    },
+  });
+}
+
 export function useCrmAction() {
   const queryClient = useQueryClient();
   return useMutation({
