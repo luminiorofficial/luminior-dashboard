@@ -1,10 +1,34 @@
 import { NextResponse } from "next/server";
-import { createAuthUser } from "@/lib/auth-db";
+import { z } from "zod";
+import { registerUser } from "@/lib/db/users";
+
+const registerSchema = z.object({
+  fullName: z.string().trim().min(1).max(200),
+  email: z.string().trim().toLowerCase().email().max(255),
+  password: z.string().min(8).max(72),
+  // The code from a company's "?ref=" invite link. Omitted only for the very
+  // first account ever created (registerUser bootstraps that one to superadmin).
+  ref: z.string().trim().max(24).optional(),
+});
 
 export async function POST(request: Request) {
   try {
-    const { fullName, email, password } = await request.json();
-    const id = await createAuthUser({ email, password, fullName });
+    const body = await request.json().catch(() => null);
+    const parsed = registerSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Invalid input" },
+        { status: 400 },
+      );
+    }
+
+    const { id } = await registerUser({
+      email: parsed.data.email,
+      password: parsed.data.password,
+      fullName: parsed.data.fullName,
+      refCode: parsed.data.ref ?? null,
+    });
+
     return NextResponse.json({ id }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Registration failed";

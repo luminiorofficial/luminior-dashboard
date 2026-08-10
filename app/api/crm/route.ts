@@ -8,7 +8,6 @@ import {
   getUserById,
   setUserPasswordByAdmin,
 } from "@/lib/db/users";
-import { resolveAccountId } from "@/lib/route-helpers";
 import {
   assignCrmMember,
   createCrmProject,
@@ -24,7 +23,6 @@ import {
   reviewLeaveRequest,
   setCrmMemberActive,
   setCrmProjectPoc,
-  setMemberBrandAccess,
   updateCrmProjectStatus,
   updateCrmTask,
   upsertMemberProfile,
@@ -44,10 +42,6 @@ const actionSchema = z.discriminatedUnion("action", [
     password: z.string().min(8).max(72),
     jobTitle: nullableText(120),
     department: nullableText(120),
-    // Brands to add this member to besides the one this dialog was opened
-    // from ("all brands" or a specific pick). The current brand is always
-    // included regardless of this list.
-    accountIds: z.array(z.number().int().positive()).max(500).optional().default([]),
   }),
   z.object({
     action: z.literal("create_project"),
@@ -80,11 +74,6 @@ const actionSchema = z.discriminatedUnion("action", [
     action: z.literal("set_member_active"),
     userId: id,
     isActive: z.boolean(),
-  }),
-  z.object({
-    action: z.literal("set_member_brands"),
-    userId: id,
-    accountIds: z.array(z.number().int().positive()).max(500),
   }),
   z.object({
     action: z.literal("create_task"),
@@ -142,21 +131,27 @@ const actionSchema = z.discriminatedUnion("action", [
   }),
 ]);
 
-export async function GET(request: Request) {
+/** Every CRM route needs the caller's own company scope to operate in. */
+async function requireCrmContext() {
+  const session = await requireSession();
+  const currentUser = await getUserById(session.id);
+  if (!currentUser?.is_active) {
+    throw new AuthError(403, "This account has been deactivated");
+  }
+  if (!currentUser.company_id) {
+    throw new AuthError(403, "This account is not attached to a company yet");
+  }
+  const isManager = session.role === "admin" || session.role === "superadmin";
+  if (!(await ensureCrmMembership(session.id, isManager, currentUser.company_id))) {
+    throw new AuthError(403, "You are not an active CRM member");
+  }
+  return { session, isManager, companyId: currentUser.company_id };
+}
+
+export async function GET() {
   try {
-    const session = await requireSession();
-    const currentUser = await getUserById(session.id);
-    if (!currentUser?.is_active) {
-      throw new AuthError(403, "This account has been deactivated");
-    }
-    const accountId = await resolveAccountId(request);
-    const isManager = session.role === "admin" || session.role === "superadmin";
-    if (!(await ensureCrmMembership(accountId, session.id, isManager))) {
-      throw new AuthError(403, "You are not an active CRM member of this brand");
-    }
-    return NextResponse.json(
-      await getCrmSnapshot(accountId, session.id, isManager),
-    );
+    const { session, isManager, companyId } = await requireCrmContext();
+    return NextResponse.json(await getCrmSnapshot(session.id, isManager, companyId));
   } catch (error) {
     return errorResponse(error);
   }
@@ -164,16 +159,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await requireSession();
-    const currentUser = await getUserById(session.id);
-    if (!currentUser?.is_active) {
-      throw new AuthError(403, "This account has been deactivated");
-    }
-    const accountId = await resolveAccountId(request);
-    const isManager = session.role === "admin" || session.role === "superadmin";
-    if (!(await ensureCrmMembership(accountId, session.id, isManager))) {
-      throw new AuthError(403, "You are not an active CRM member of this brand");
-    }
+    const { session, isManager, companyId } = await requireCrmContext();
     const body = await request.json().catch(() => null);
     const parsed = actionSchema.safeParse(body);
     if (!parsed.success) {
@@ -199,7 +185,6 @@ export async function POST(request: Request) {
       "create_member",
       "create_project",
       "set_member_active",
-      "set_member_brands",
       "set_project_poc",
       "review_leave",
     ];
@@ -225,6 +210,9 @@ export async function POST(request: Request) {
           if (existing.role === "admin" || existing.role === "superadmin") {
             throw new AuthError(409, "This email belongs to a manager account");
           }
+          if (existing.company_id && existing.company_id !== companyId) {
+            throw new AuthError(409, "This email already belongs to another company");
+          }
           userId = existing.id;
           const credentialUpdated = await setUserPasswordByAdmin({
             id: userId,
@@ -240,36 +228,29 @@ export async function POST(request: Request) {
             passwordHash,
             fullName: data.fullName,
             role: "user",
+            companyId,
           });
         }
-        const targetAccountIds = new Set(data.accountIds);
-        targetAccountIds.add(accountId);
-        for (const targetId of targetAccountIds) {
-          await upsertMemberProfile(targetId, userId, data.jobTitle, data.department);
-        }
+        await upsertMemberProfile(userId, companyId, data.jobTitle, data.department);
         break;
       }
       case "create_project":
         await createCrmProject({
           ...data,
-          accountId,
+          companyId,
           createdBy: session.id,
         });
         break;
       case "assign_member": {
         if (
           !isManager &&
-          !(await isCrmProjectPoc(accountId, data.projectId, session.id))
+          !(await isCrmProjectPoc(data.projectId, session.id, companyId))
         ) {
           throw new AuthError(403, "Project POC access required");
         }
-        const assigned = await assignCrmMember(
-          accountId,
-          data.projectId,
-          data.userId,
-        );
+        const assigned = await assignCrmMember(data.projectId, data.userId, companyId);
         if (!assigned) {
-          throw new AuthError(404, "Project or active brand member not found");
+          throw new AuthError(404, "Project or active team member not found");
         }
         break;
       }
@@ -277,34 +258,20 @@ export async function POST(request: Request) {
         if (data.userId === session.id) {
           throw new AuthError(400, "You cannot deactivate your own account");
         }
-        const updated = await setCrmMemberActive(
-          accountId,
-          data.userId,
-          data.isActive,
-        );
+        const updated = await setCrmMemberActive(data.userId, companyId, data.isActive);
         if (!updated) throw new AuthError(404, "Team member not found");
-        break;
-      }
-      case "set_member_brands": {
-        if (data.userId === session.id) {
-          throw new AuthError(400, "You cannot change your own brand access");
-        }
-        const changed = await setMemberBrandAccess(data.userId, data.accountIds);
-        if (!changed) {
-          throw new AuthError(404, "Team member not found or not eligible for brand assignment");
-        }
         break;
       }
       case "create_task": {
         if (
           !isManager &&
-          !(await isCrmProjectPoc(accountId, data.projectId, session.id))
+          !(await isCrmProjectPoc(data.projectId, session.id, companyId))
         ) {
           throw new AuthError(403, "Project POC access required");
         }
         const created = await createCrmTask({
           ...data,
-          accountId,
+          companyId,
           createdBy: session.id,
         });
         if (!created) {
@@ -316,22 +283,14 @@ export async function POST(request: Request) {
         break;
       }
       case "set_project_poc": {
-        const updated = await setCrmProjectPoc(
-          accountId,
-          data.projectId,
-          data.pocUserId,
-        );
+        const updated = await setCrmProjectPoc(data.projectId, data.pocUserId, companyId);
         if (!updated) {
           throw new AuthError(404, "Project or active POC member not found");
         }
         break;
       }
       case "update_project": {
-        const isPoc = await isCrmProjectPoc(
-          accountId,
-          data.projectId,
-          session.id,
-        );
+        const isPoc = await isCrmProjectPoc(data.projectId, session.id, companyId);
         if (!isManager && !isPoc) {
           throw new AuthError(403, "Project POC access required");
         }
@@ -339,8 +298,8 @@ export async function POST(request: Request) {
           throw new AuthError(403, "Only a manager can complete a project");
         }
         const updated = await updateCrmProjectStatus({
-          accountId,
           projectId: data.projectId,
+          companyId,
           status: data.status,
           canReopen: isManager,
         });
@@ -353,11 +312,7 @@ export async function POST(request: Request) {
         break;
       }
       case "update_task": {
-        const access = await getCrmTaskAccess(
-          accountId,
-          data.taskId,
-          session.id,
-        );
+        const access = await getCrmTaskAccess(data.taskId, session.id, companyId);
         if (!access) throw new AuthError(404, "Task not found");
         const canManage = isManager || Boolean(access.is_poc);
         if (!canManage && !access.is_assignee) {
@@ -380,7 +335,7 @@ export async function POST(request: Request) {
         }
         const updated = await updateCrmTask({
           ...data,
-          accountId,
+          companyId,
           actorId: session.id,
           canManage,
         });
@@ -388,18 +343,14 @@ export async function POST(request: Request) {
         break;
       }
       case "manage_task": {
-        const access = await getCrmTaskAccess(
-          accountId,
-          data.taskId,
-          session.id,
-        );
+        const access = await getCrmTaskAccess(data.taskId, session.id, companyId);
         if (!access) throw new AuthError(404, "Task not found");
         if (!isManager && !access.is_poc) {
           throw new AuthError(403, "Project POC access required");
         }
         const updated = await manageCrmTask({
           ...data,
-          accountId,
+          companyId,
           actorId: session.id,
         });
         if (!updated) {
@@ -412,8 +363,8 @@ export async function POST(request: Request) {
       }
       case "timer": {
         const changed = await performTimerAction(
-          accountId,
           session.id,
+          companyId,
           data.timerAction,
           data.breakLabel ?? null,
         );
@@ -422,8 +373,8 @@ export async function POST(request: Request) {
       }
       case "start_project_work": {
         const changed = await performProjectWorkAction({
-          accountId,
           userId: session.id,
+          companyId,
           isManager,
           action: "start",
           projectId: data.projectId,
@@ -440,8 +391,8 @@ export async function POST(request: Request) {
       }
       case "stop_project_work": {
         const changed = await performProjectWorkAction({
-          accountId,
           userId: session.id,
+          companyId,
           isManager,
           action: "stop",
           projectId: null,
@@ -454,12 +405,12 @@ export async function POST(request: Request) {
         break;
       }
       case "request_leave":
-        await createLeaveRequest({ ...data, accountId, userId: session.id });
+        await createLeaveRequest({ ...data, companyId, userId: session.id });
         break;
       case "review_leave": {
         const updated = await reviewLeaveRequest({
-          accountId,
           leaveId: data.leaveId,
+          companyId,
           reviewerId: session.id,
           status: data.status,
           managerNote: data.managerNote,
@@ -470,7 +421,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      await getCrmSnapshot(accountId, session.id, isManager),
+      await getCrmSnapshot(session.id, isManager, companyId),
       { status: 200 },
     );
   } catch (error) {

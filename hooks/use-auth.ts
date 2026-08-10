@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { signIn as nextSignIn, signOut as nextSignOut, useSession } from "next-auth/react";
-import { apiMutate } from "@/lib/fetcher";
+import { apiMutate, FetchError } from "@/lib/fetcher";
 
 export type AuthUser = {
   id: string;
@@ -45,20 +45,30 @@ export function useAuth() {
     return Boolean(result?.ok);
   }, []);
 
-  const signUp = useCallback(async (fullName: string, email: string, password: string) => {
-    const created = await apiMutate<{ id: string }>("POST", "/api/auth/register", {
-      body: { fullName, email, password },
-    });
-    if (!created?.id) {
-      return false;
-    }
-    const result = await nextSignIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
-    return Boolean(result?.ok);
-  }, []);
+  const signUp = useCallback(
+    async (fullName: string, email: string, password: string, refCode?: string | null) => {
+      try {
+        const created = await apiMutate<{ id: string }>("POST", "/api/auth/register", {
+          body: { fullName, email, password, ref: refCode || undefined },
+        });
+        if (!created?.id) {
+          return { ok: false, error: "We could not create your account." };
+        }
+      } catch (error) {
+        return {
+          ok: false,
+          error: error instanceof FetchError ? error.message : "We could not create your account.",
+        };
+      }
+      const result = await nextSignIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+      return { ok: Boolean(result?.ok) };
+    },
+    [],
+  );
 
   const signOut = useCallback(() => {
     void nextSignOut({ redirectTo: "/sign-in" });

@@ -4,6 +4,7 @@ import * as React from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Clock3,
+  Coffee,
   Play,
   Loader2,
   Square,
@@ -193,8 +194,8 @@ export function TimerControls({
 }: {
   status: CrmTimerStatus | "idle";
   busy: boolean;
-  pendingAction: "clock_in" | "end_break" | "clock_out" | null;
-  onAction: (action: "clock_in" | "end_break" | "clock_out") => void;
+  pendingAction: "clock_in" | "start_break" | "end_break" | "clock_out" | null;
+  onAction: (action: "clock_in" | "start_break" | "end_break" | "clock_out") => void;
 }) {
   if (status === "idle" || status === "stopped") {
     return (
@@ -205,12 +206,39 @@ export function TimerControls({
   }
   return (
     <div className="flex flex-wrap gap-2" aria-busy={busy}>
+      {status === "working" && (
+        <Button
+          variant="outline"
+          disabled={busy}
+          onClick={() => onAction("start_break")}
+          aria-label={pendingAction === "start_break" ? "Starting break" : "Start break"}
+        >
+          {pendingAction === "start_break" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Starting break…
+            </>
+          ) : (
+            <>
+              <Coffee className="h-4 w-4" /> Start break
+            </>
+          )}
+        </Button>
+      )}
       {status === "on_break" && (
         <Button
           disabled={busy}
           onClick={() => onAction("end_break")}
+          aria-label={pendingAction === "end_break" ? "Resuming work" : "Resume work"}
         >
-          <Play className="h-4 w-4" /> Resume work
+          {pendingAction === "end_break" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Resuming…
+            </>
+          ) : (
+            <>
+              <Play className="h-4 w-4" /> Resume work
+            </>
+          )}
         </Button>
       )}
       <Button

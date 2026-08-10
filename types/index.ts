@@ -5,31 +5,24 @@ export interface SessionUser {
   email: string;
   fullName: string | null;
   role: ProfileRole;
-  accounts: string[];
 }
 
 export interface SessionPayload {
   id: string;
   email: string;
   role: ProfileRole;
-  accounts: string[];
-  account_id: string;
   iat: number;
   exp: number;
 }
 
+/** The one company profile the whole app belongs to. */
 export interface Account {
-  accountId: number;
   name: string;
   avatar: string;
-  shopifyDomain: string;
   gmail?: string;
+  phone?: string;
+  address?: string;
+  website?: string;
 }
 
-export interface SafeAccount {
-  accountId: number;
-  name: string;
-  avatar: string;
-  shopifyDomain: string;
-  gmail?: string;
-}
+export type SafeAccount = Account;

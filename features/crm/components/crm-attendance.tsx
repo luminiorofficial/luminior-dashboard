@@ -22,7 +22,7 @@ export function CrmAttendance() {
   const crm = useCrm();
   const action = useCrmAction();
   const [pendingTimerAction, setPendingTimerAction] = useState<
-    "clock_in" | "end_break" | "clock_out" | null
+    "clock_in" | "start_break" | "end_break" | "clock_out" | null
   >(null);
   const data = crm.data;
   if (!data) {
@@ -88,12 +88,14 @@ export function CrmAttendance() {
   const activeMembers = data.team.filter((member) => member.isActive).length;
 
   async function timer(
-    timerAction: "clock_in" | "end_break" | "clock_out",
+    timerAction: "clock_in" | "start_break" | "end_break" | "clock_out",
   ) {
     setPendingTimerAction(timerAction);
     try {
       await action.mutateAsync({ action: "timer", timerAction });
-      toast.success("Attendance updated");
+      toast.success(
+        timerAction === "start_break" ? "Break started" : "Attendance updated",
+      );
     } catch (error) {
       toast.error((error as Error).message);
     } finally {

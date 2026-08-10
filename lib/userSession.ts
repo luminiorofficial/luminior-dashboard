@@ -1,13 +1,12 @@
 // ─── Server-side auth helpers ─────────────────────────────────────────────────
 import "server-only";
 import { NextResponse } from "next/server";
-import { canAccessAccount } from "@/lib/data";
 import { getUserById } from "@/lib/db/users";
 import type { ProfileRole } from "@/features/auth/types";
 import type { SessionPayload } from "@/types";
 import { auth } from "@/auth";
 
-/** dbo.tbl_users.role is 'user' | 'admin' | 'superadmin' — normalise defensively. */
+/** tbl_users.role is 'user' | 'admin' | 'superadmin' — normalise defensively. */
 function toRole(role: unknown): ProfileRole {
   return role === "superadmin" || role === "admin" ? role : "user";
 }
@@ -33,20 +32,14 @@ export async function getSession(): Promise<SessionPayload | null> {
 
   const dbUser = await getUserById(u.id);
   const role = toRole(dbUser?.role ?? u.role);
-  const now  = Math.floor(Date.now() / 1000);
+  const now = Math.floor(Date.now() / 1000);
 
   return {
-    id:         u.id,
-    email:      u.email ?? "",
+    id: u.id,
+    email: u.email ?? "",
     role,
-    account_id: u.account_id,           // ← now included
-    // Admin AND Superadmin reach every brand account — Superadmin is a strict
-    // superset of Admin (full Operations + CRM access everywhere) plus its own
-    // exclusive Users module. Plain users are resolved from tbl_user_accounts
-    // elsewhere.
-    accounts:   role === "admin" || role === "superadmin" ? ["all"] : [],
-    iat:        now,
-    exp:        now + 3600,
+    iat: now,
+    exp: now + 3600,
   };
 }
 
@@ -79,18 +72,6 @@ export async function requireSuperadmin(): Promise<SessionPayload> {
   const session = await requireSession();
   if (session.role !== "superadmin") {
     throw new AuthError(403, "Super Admin access required");
-  }
-  return session;
-}
-
-export async function requireAccountAccess(
-  accountId: number,
-): Promise<SessionPayload> {
-  const session = await requireSession();
-  if (!Number.isInteger(accountId) || accountId <= 0)
-    throw new AuthError(400, "Missing or invalid account id");
-  if (!canAccessAccount(session.accounts, accountId)) {
-    throw new AuthError(403, "You do not have access to this account");
   }
   return session;
 }

@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { AuthError, errorResponse, requireSession } from "@/lib/userSession";
-import {
-  getAccessibleAccounts,
-  toSafeAccount,
-} from "@/lib/data";
+import { getCompanyById } from "@/lib/db/accounts";
 import { getUserByEmail, getUserById, updateUserProfile } from "@/lib/db/users";
 import type { SessionUser } from "@/types";
 
 /**
  * "Get all my data" — the single bootstrap call the client makes right after the
- * credentials check passes. Returns the signed-in user's full details plus every
- * account they may access (tokens stripped). The client caches both in Zustand.
+ * credentials check passes. Returns the signed-in user's full details plus the
+ * one company profile. The client caches both in Zustand.
  */
 export async function GET() {
   try {
@@ -30,15 +27,11 @@ export async function GET() {
       email: dbUser?.email ?? session.email,
       fullName: dbUser?.full_name ?? null,
       role: session.role,
-      accounts: session.accounts,
     };
 
-    const accounts = await getAccessibleAccounts(session);
+    const company = dbUser?.company_id ? await getCompanyById(dbUser.company_id) : null;
 
-    return NextResponse.json({
-      user,
-      accounts: accounts.map(toSafeAccount),
-    });
+    return NextResponse.json({ user, company });
   } catch (err) {
     return errorResponse(err);
   }
@@ -111,7 +104,6 @@ export async function PATCH(req: Request) {
       email: updated.email,
       fullName: updated.full_name,
       role: session.role,
-      accounts: session.accounts,
     };
 
     return NextResponse.json({ user, emailChanged });

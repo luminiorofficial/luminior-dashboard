@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
+import { Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,10 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useCrmAction } from "@/hooks/use-crm";
-import { useAccountStore } from "@/store/account-store";
+import { useCrmAction, useCrmInviteLink } from "@/hooks/use-crm";
 import type {
-  CrmBrandOption,
   CrmProject,
   CrmTask,
   CrmTeamMember,
@@ -56,63 +55,8 @@ function DialogError({ message }: { message?: string }) {
   ) : null;
 }
 
-/** Shared checkbox list for brand assignment — "all brands" plus a specific pick. */
-function BrandCheckboxes({
-  brands,
-  accountIds,
-  onChange,
-}: {
-  brands: CrmBrandOption[];
-  accountIds: number[];
-  onChange: (accountIds: number[]) => void;
-}) {
-  const allSelected = brands.length > 0 && accountIds.length === brands.length;
-
-  return (
-    <div className="space-y-2">
-      <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border p-2.5 text-sm font-medium hover:bg-accent">
-        <input
-          type="checkbox"
-          checked={allSelected}
-          onChange={(event) =>
-            onChange(event.target.checked ? brands.map((b) => b.accountId) : [])
-          }
-          className="accent-primary"
-        />
-        All brands
-      </label>
-      <div className="grid max-h-48 gap-2 overflow-y-auto rounded-lg border border-border p-3 sm:grid-cols-2">
-        {brands.map((brand) => (
-          <label
-            key={brand.accountId}
-            className="flex cursor-pointer items-center gap-2 rounded-md p-1.5 text-sm hover:bg-accent"
-          >
-            <input
-              type="checkbox"
-              checked={accountIds.includes(brand.accountId)}
-              onChange={(event) =>
-                onChange(
-                  event.target.checked
-                    ? [...accountIds, brand.accountId]
-                    : accountIds.filter((id) => id !== brand.accountId),
-                )
-              }
-              className="accent-primary"
-            />
-            <span className="truncate">{brand.name}</span>
-          </label>
-        ))}
-        {brands.length === 0 && (
-          <p className="text-xs text-muted-foreground">No brands configured yet.</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export function CreateMemberDialog({ brands }: { brands: CrmBrandOption[] }) {
+export function CreateMemberDialog() {
   const [open, setOpen] = useState(false);
-  const [accountIds, setAccountIds] = useState<number[]>([]);
   const action = useCrmAction();
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -126,13 +70,10 @@ export function CreateMemberDialog({ brands }: { brands: CrmBrandOption[] }) {
         password: form.get("password"),
         jobTitle: form.get("jobTitle"),
         department: form.get("department"),
-        accountIds,
       });
       toast.success("Team member added", {
-        description:
-          "They can sign in with this email and password. The credential applies across their brands.",
+        description: "They can sign in with this email and password.",
       });
-      setAccountIds([]);
       setOpen(false);
     } catch {
       // The inline error below carries the server's safe message.
@@ -145,7 +86,6 @@ export function CreateMemberDialog({ brands }: { brands: CrmBrandOption[] }) {
       onOpenChange={(next) => {
         setOpen(next);
         action.reset();
-        if (!next) setAccountIds([]);
       }}
     >
       <DialogTrigger asChild>
@@ -157,8 +97,7 @@ export function CreateMemberDialog({ brands }: { brands: CrmBrandOption[] }) {
             <DialogTitle>Add team member</DialogTitle>
             <DialogDescription>
               Create a private CRM login for a new member. If the email
-              already exists, this password resets that identity&apos;s login
-              across its brands.
+              already exists, this password resets that identity&apos;s login.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -185,19 +124,6 @@ export function CreateMemberDialog({ brands }: { brands: CrmBrandOption[] }) {
               />
             </Field>
           </div>
-          {brands.length > 0 && (
-            <Field label="Also give access to">
-              <BrandCheckboxes
-                brands={brands}
-                accountIds={accountIds}
-                onChange={setAccountIds}
-              />
-              <p className="text-xs text-muted-foreground">
-                The current brand is included automatically. Pick any additional
-                brands here, or select all brands.
-              </p>
-            </Field>
-          )}
           <DialogError message={action.error?.message} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
@@ -213,36 +139,21 @@ export function CreateMemberDialog({ brands }: { brands: CrmBrandOption[] }) {
   );
 }
 
-export function ManageMemberBrandsDialog({
-  member,
-  brands,
-}: {
-  member: CrmTeamMember;
-  brands: CrmBrandOption[];
-}) {
+/** Copy-to-clipboard invite link — anyone who signs up through it joins automatically. */
+export function InviteLinkDialog() {
   const [open, setOpen] = useState(false);
-  const [accountIds, setAccountIds] = useState<number[]>(member.brandIds);
-  const action = useCrmAction();
+  const [copied, setCopied] = useState(false);
+  const invite = useCrmInviteLink(open);
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function copy() {
+    if (!invite.data?.url) return;
     try {
-      await action.mutateAsync({
-        action: "set_member_brands",
-        userId: member.id,
-        accountIds,
-      });
-      toast.success("Brand access updated", {
-        description: `${member.fullName || member.email} now has CRM and brand access to ${
-          accountIds.length === 0
-            ? "no brands"
-            : accountIds.length === 1
-              ? "1 brand"
-              : `${accountIds.length} brands`
-        }.`,
-      });
-      setOpen(false);
-    } catch {}
+      await navigator.clipboard.writeText(invite.data.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Could not copy — select and copy the link manually.");
+    }
   }
 
   return (
@@ -250,40 +161,45 @@ export function ManageMemberBrandsDialog({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        action.reset();
-        if (next) setAccountIds(member.brandIds);
+        if (!next) setCopied(false);
       }}
     >
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          Brands
+        <Button variant="outline">
+          <Link2 className="h-4 w-4" />
+          Invite link
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <form onSubmit={submit} className="space-y-4">
-          <DialogHeader>
-            <DialogTitle>Brand access</DialogTitle>
-            <DialogDescription>
-              Choose which brands {member.fullName || member.email} can see —
-              both their Operations data and that brand&apos;s CRM. They will
-              still only see their own tasks and work, not the full CRM view.
-            </DialogDescription>
-          </DialogHeader>
-          <BrandCheckboxes
-            brands={brands}
-            accountIds={accountIds}
-            onChange={setAccountIds}
-          />
-          <DialogError message={action.error?.message} />
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+        <DialogHeader>
+          <DialogTitle>Invite teammates</DialogTitle>
+          <DialogDescription>
+            Anyone who signs up through this link joins automatically as an
+            active team member — no manual setup needed. The link stays the
+            same every time you open this.
+          </DialogDescription>
+        </DialogHeader>
+        {invite.isLoading ? (
+          <p className="text-sm text-muted-foreground">Generating your link…</p>
+        ) : invite.error ? (
+          <DialogError message={(invite.error as Error).message} />
+        ) : (
+          <div className="flex items-center gap-2">
+            <Input
+              readOnly
+              value={invite.data?.url ?? ""}
+              onFocus={(event) => event.currentTarget.select()}
+            />
+            <Button type="button" onClick={() => void copy()}>
+              {copied ? "Copied" : "Copy"}
             </Button>
-            <Button type="submit" disabled={action.isPending}>
-              {action.isPending ? "Saving…" : "Save brand access"}
-            </Button>
-          </DialogFooter>
-        </form>
+          </div>
+        )}
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

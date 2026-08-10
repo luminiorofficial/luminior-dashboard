@@ -31,48 +31,23 @@ import {
   TaskPriorityBadge,
   TimerControls,
 } from "./crm-ui";
-import { CreateMemberDialog, CreateProjectDialog } from "./crm-dialogs";
+import { CreateMemberDialog, CreateProjectDialog, InviteLinkDialog } from "./crm-dialogs";
 
 export function CrmDashboard() {
   const crm = useCrm();
   const action = useCrmAction();
   const [pendingTimerAction, setPendingTimerAction] = useState<
-    "clock_in" | "end_break" | "clock_out" | null
+    "clock_in" | "start_break" | "end_break" | "clock_out" | null
   >(null);
   const data = crm.data;
 
   if (!data) {
-    const isManager = true;
     return (
-      <PageTransition className="space-y-6">
-        <Card className="border-dashed border-primary/30 bg-primary/[0.02]">
-          <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-primary">
-                CRM is ready
-              </p>
-              <p className="mt-2 text-lg font-semibold text-foreground">
-                Start building your team and delivery pipeline
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                This workspace is empty. Add your first team member and project to begin tracking work.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <CreateMemberDialog brands={[]} />
-              <CreateProjectDialog team={[]} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <CrmStatCard label="Active projects" value={0} detail="0 total projects" icon={FolderKanban} accent />
-          <CrmStatCard label="Total team members" value={0} detail="0 active members" icon={Users} />
-          <CrmStatCard label="Open tasks" value={0} detail="0 completed" icon={CheckCircle2} />
-          <CrmStatCard label="Working now" value={0} detail="0 active accounts" icon={Activity} />
-          <CrmStatCard label="Leave requests" value={0} detail="Awaiting approval" icon={CalendarCheck} />
-        </div>
-      </PageTransition>
+      <CrmLoadState
+        loading={crm.isLoading}
+        error={(crm.error as Error) ?? null}
+        retry={() => void crm.refetch()}
+      />
     );
   }
 
@@ -110,7 +85,7 @@ export function CrmDashboard() {
   );
 
   async function timer(
-    timerAction: "clock_in" | "end_break" | "clock_out",
+    timerAction: "clock_in" | "start_break" | "end_break" | "clock_out",
   ) {
     setPendingTimerAction(timerAction);
     try {
@@ -120,10 +95,14 @@ export function CrmDashboard() {
           ? "Work timer started"
           : timerAction === "clock_out"
             ? "Work timer stopped"
-            : "Back to work",
+            : timerAction === "start_break"
+              ? "Break started"
+              : "Back to work",
       );
     } catch (error) {
       toast.error((error as Error).message);
+    } finally {
+      setPendingTimerAction(null);
     }
   }
 
@@ -226,7 +205,8 @@ export function CrmDashboard() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <CreateMemberDialog brands={data.brands} />
+              <InviteLinkDialog />
+              <CreateMemberDialog />
               <CreateProjectDialog team={data.team} />
             </div>
           </CardContent>
@@ -292,7 +272,7 @@ export function CrmDashboard() {
               {isManager ? "Priority tasks" : isPoc ? "POC priorities" : "My next tasks"}
             </CardTitle>
             <Button asChild variant="ghost" size="sm">
-              <Link href="/crm/tasks">View all</Link>
+              <Link href="/tasks">View all</Link>
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -350,7 +330,7 @@ export function CrmDashboard() {
               {isManager ? "Team right now" : "Project progress"}
             </CardTitle>
             <Button asChild variant="ghost" size="sm">
-              <Link href={isManager ? "/crm/team" : "/crm/projects"}>View all</Link>
+              <Link href={isManager ? "/team" : "/projects"}>View all</Link>
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">

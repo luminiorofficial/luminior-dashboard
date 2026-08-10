@@ -3,14 +3,17 @@
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
 import { QueryProvider } from "@/providers/query-provider";
+import { ThemeProvider } from "@/providers/theme-provider";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
-      <QueryProvider>
-        {children}
-        <Toaster richColors closeButton position="top-right" />
-      </QueryProvider>
-    </SessionProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <SessionProvider>
+        <QueryProvider>
+          {children}
+          <Toaster richColors closeButton position="bottom-right" />
+        </QueryProvider>
+      </SessionProvider>
+    </ThemeProvider>
   );
 }

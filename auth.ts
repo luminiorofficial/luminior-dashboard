@@ -3,31 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import authConfig from "@/auth.config";
-import {
-  getUserByEmail,
-  getUserById,
-  getUserAccountIds,
-  upsertOAuthUser,
-  type DbUser,
-} from "@/lib/db/users";
-import { getAccounts } from "@/lib/data";
-
-/**
- * The account a user lands on by default = their first accessible store. Admins
- * and Superadmins (a strict superset of Admin) can reach every account, so
- * their default is the first account overall; regular users default to their
- * first linked account (empty string if none yet). Only a fallback — the
- * account switcher's ?account= overrides it on every data request. Shared by
- * the Credentials and Google paths so both behave the same.
- */
-async function resolveDefaultAccountId(user: Pick<DbUser, "id" | "role">): Promise<string> {
-  if (user.role === "admin" || user.role === "superadmin") {
-    const all = await getAccounts();
-    return all[0] ? String(all[0].accountId) : "";
-  }
-  const ids = await getUserAccountIds(user.id);
-  return ids[0] != null ? String(ids[0]) : "";
-}
+import { getUserByEmail, getUserById, upsertOAuthUser } from "@/lib/db/users";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -58,7 +34,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.full_name ?? undefined,
           role: user.role,
-          account_id: await resolveDefaultAccountId(user),
         };
       },
     }),
@@ -77,7 +52,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // ── Callbacks ──────────────────────────────────────────────────────────────
   callbacks: {
     // Runs before a session is issued. For Google we mint (or find) the matching
-    // row in dbo.tbl_users here so the rest of the app can treat a Google user
+    // row in tbl_users here so the rest of the app can treat a Google user
     // exactly like a credentials user. Returning false aborts the sign-in.
     async signIn({ user, account }) {
       if (account?.provider === "google") {
@@ -94,7 +69,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user && account?.provider !== "google") {
         token.id = user.id;
         token.role = (user as { role?: string }).role;
-        token.account_id = (user as { account_id?: string }).account_id;
       }
 
       // A client called useSession().update() — it just edited its profile, so
@@ -112,14 +86,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       // Google: `user` is Google's profile (its own id), so resolve OUR user by
-      // email and stamp our id/role/default account onto the token. Guarded by
-      // `account?.provider` so it only runs on the initial sign-in, not refreshes.
+      // email and stamp our id/role onto the token. Guarded by `account?.provider`
+      // so it only runs on the initial sign-in, not refreshes.
       if (account?.provider === "google" && token.email) {
         const dbUser = await getUserByEmail(String(token.email));
         if (dbUser) {
           token.id = dbUser.id;
           token.role = dbUser.role;
-          token.account_id = await resolveDefaultAccountId(dbUser);
         }
       }
 
@@ -130,8 +103,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         (session.user as { id?: string }).id = token.id as string;
         (session.user as { role?: string }).role = token.role as string | undefined;
-        (session.user as { account_id?: string }).account_id =
-          token.account_id as string | undefined;
       }
       return session;
     },

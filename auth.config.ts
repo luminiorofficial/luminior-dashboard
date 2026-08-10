@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // Edge-safe NextAuth config (no Node-only imports). Shared by:
-//   • src/auth.ts        — adds the Credentials provider (bcrypt + MSSQL, Node)
-//   • src/proxy.ts        — middleware reads the JWT here (must stay edge-safe)
-// Keeping the provider's authorize() out of this file is what lets the
-// middleware bundle for the edge runtime without pulling in mssql/bcrypt.
+//   • auth.ts    — adds the Credentials + Google providers (bcrypt + pg, Node)
+//   • proxy.ts   — reads the JWT here (must stay edge-safe)
+// Keeping the provider's authorize() out of this file is what lets proxy.ts
+// bundle for the edge runtime without pulling in pg/bcrypt.
 // ---------------------------------------------------------------------------
 import type { NextAuthConfig } from "next-auth";
 

@@ -7,16 +7,17 @@
   ───────────────────────────────────────────────────────────────────────────
   LUMINIOR — Operations Design System
   ───────────────────────────────────────────────────────────────────────────
-  A restrained, warm palette built on four brand pillars:
+  A clean, professional white/blue palette:
 
-    Obsidian      #100E0C   primary canvas
-    Noir          #1A1815   secondary surface
-    Luminior Gold #D4A638   brand accent
-    Cream         #F2EFE5   primary text / light canvas
+    Blue     #2563eb   primary brand / interaction color
+    Navy     #0b1220   dark-mode canvas
+    White    #ffffff   light-mode canvas / cards
 
   Components reference semantic variables so the full product can be tuned
-  here. Gold is reserved for brand and interaction; warm neutrals carry the
+  here. Blue is reserved for brand and interaction; neutrals carry the
   interface structure, and status colors retain their operational meaning.
+  Variable names are kept stable across themes (--gold/--brand are legacy
+  aliases some components reference directly) — only the values change.
   ───────────────────────────────────────────────────────────────────────────
 */
 
@@ -32,57 +33,58 @@
   --app-chrome: 7.5rem;
 
   /* ── Raw brand pigments (single source of truth) ── */
-  /* Core brand palette. Legacy gold names remain as compatibility aliases. */
-  --brand: #d4a638;
-  --brand-soft: #e4c46b;
-  --brand-bright: #eecd7a;
-  --obsidian: #100e0c;
-  --noir: #1a1815;
-  --noir-elevated: #211e19;
+  --brand: #2563eb;
+  --brand-soft: #3b82f6;
+  --brand-bright: #60a5fa;
+  --obsidian: #0b1220;
+  --noir: #121a2b;
+  --noir-elevated: #17203a;
+  /* Legacy "gold" names remain as compatibility aliases — some components
+     (button/input hover states) reference var(--gold) directly. */
   --gold: var(--brand);
   --gold-soft: var(--brand-soft);
   --gold-bright: var(--brand-bright);
-  --cream: #f2efe5;
+  --cream: #eef2ff;
 
-  /* ════════════ WARM DAYLIGHT ════════════ */
-  --background: #f6f7f8;
-  --foreground: #211e19;
+  /* ════════════ LIGHT — WHITE / BLUE ════════════ */
+  --background: #f6f8fb;
+  --foreground: #0f172a;
   --card: #ffffff;
-  --card-foreground: #211e19;
+  --card-foreground: #0f172a;
   --popover: #ffffff;
-  --popover-foreground: #211e19;
+  --popover-foreground: #0f172a;
 
   --primary: var(--brand);
-  --primary-foreground: #17130d;
-  --secondary: #f1f2f3;
-  --secondary-foreground: #302b23;
-  --muted: #f1f2f4;
-  --muted-foreground: #6b6b68;
-  --accent: #f3ead2;
-  --accent-foreground: #765816;
-  --destructive: #b9413a;
+  --primary-foreground: #ffffff;
+  --secondary: #eef2f7;
+  --secondary-foreground: #1e293b;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #dbeafe;
+  --accent-foreground: #1d4ed8;
+  --destructive: #dc2626;
   --destructive-foreground: #ffffff;
 
-  --success: #47745a;
-  --warning: #9a6b19;
+  --success: #16a34a;
+  --warning: #d97706;
 
   /* Neutral headings keep dense operational pages easy to scan. */
-  --heading: #211e19;
+  --heading: #0f172a;
 
-  --border: #e1e2e4;
-  --input: #d1d3d6;
+  --border: #e2e8f0;
+  --input: #cbd5e1;
   --ring: var(--brand);
 
-  /* Warm chart ramp with one restrained sage counterpoint. */
-  --chart-1: #b8881f;
-  --chart-2: #d4a638;
-  --chart-3: #8f6d2d;
-  --chart-4: #64715d;
-  --chart-5: #665e50;
+  /* Blue chart ramp with two cool counterpoints for contrast. */
+  --chart-1: #2563eb;
+  --chart-2: #0ea5e9;
+  --chart-3: #6366f1;
+  --chart-4: #0891b2;
+  --chart-5: #64748b;
 }
 
 .dark {
-  /* ════════════ OBSIDIAN DARK ════════════ */
+  /* ════════════ DARK — NAVY / BLUE ════════════ */
   --background: var(--obsidian);
   --foreground: var(--cream);
   --card: var(--noir);
@@ -90,34 +92,34 @@
   --popover: var(--noir-elevated);
   --popover-foreground: var(--cream);
 
-  --primary: var(--gold);
+  --primary: var(--gold-bright);
   --primary-foreground: var(--obsidian);
   --secondary: var(--noir-elevated);
   --secondary-foreground: var(--cream);
   --muted: var(--noir-elevated);
-  --muted-foreground: #aaa397;
-  --accent: #2c271d;
-  --accent-foreground: #e4c46b;
-  --destructive: #d56a61;
-  --destructive-foreground: var(--cream);
+  --muted-foreground: #94a3b8;
+  --accent: #16233d;
+  --accent-foreground: #93c5fd;
+  --destructive: #f87171;
+  --destructive-foreground: var(--obsidian);
 
-  --success: #74a184;
-  --warning: #e4c46b;
+  --success: #4ade80;
+  --warning: #fbbf24;
 
-  /* Headings remain neutral; gold is reserved for emphasis and actions. */
+  /* Headings remain neutral; blue is reserved for emphasis and actions. */
   --heading: var(--cream);
 
   /* Neutral borders separate surfaces without outlining every element. */
-  --border: #39342b;
-  --input: #4a4336;
-  --ring: var(--gold);
+  --border: #22304a;
+  --input: #2c3c5c;
+  --ring: var(--gold-bright);
 
   /* Slightly brighter data colors maintain contrast on dark surfaces. */
-  --chart-1: #d4a638;
-  --chart-2: #e4c46b;
-  --chart-3: #a87d2e;
-  --chart-4: #829079;
-  --chart-5: #8c8170;
+  --chart-1: #60a5fa;
+  --chart-2: #38bdf8;
+  --chart-3: #818cf8;
+  --chart-4: #22d3ee;
+  --chart-5: #94a3b8;
 }
 
 @theme inline {

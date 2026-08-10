@@ -36,11 +36,6 @@ export interface CrmTeamMember {
   currentTaskId: string | null;
   currentTaskTitle: string | null;
   projectTrackedMinutesToday: number;
-  /**
-   * Brand (account) ids this member has active CRM access to. Populated for
-   * managers only — regular members already only ever see their own row.
-   */
-  brandIds: number[];
 }
 
 export interface CrmProject {
@@ -151,19 +146,10 @@ export interface CrmLeaveRequest {
   createdAt: string;
 }
 
-/** One brand a manager can grant/revoke CRM + Operations access to. */
-export interface CrmBrandOption {
-  accountId: number;
-  name: string;
-}
-
 export interface CrmSnapshot {
-  accountId: number;
   role: "manager" | "member";
   currentUserId: string;
   pocProjectIds: string[];
-  /** Every brand in the system — managers only, used for the brand-access checkboxes. */
-  brands: CrmBrandOption[];
   team: CrmTeamMember[];
   projects: CrmProject[];
   tasks: CrmTask[];

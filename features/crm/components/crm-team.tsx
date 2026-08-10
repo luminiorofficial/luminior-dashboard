@@ -22,7 +22,7 @@ import { useCrm, useCrmAction } from "@/hooks/use-crm";
 import { initials } from "@/lib/utils";
 import type { CrmTeamMember } from "@/features/crm/types";
 import { CrmLoadState } from "./crm-load-state";
-import { CreateMemberDialog, ManageMemberBrandsDialog } from "./crm-dialogs";
+import { CreateMemberDialog, InviteLinkDialog } from "./crm-dialogs";
 import { CrmBadge, FocusTimer, formatMinutes, formatTime } from "./crm-ui";
 
 function MemberStatusControl({ member }: { member: CrmTeamMember }) {
@@ -101,13 +101,13 @@ export function CrmTeam() {
           eyebrow="CRM · People"
           title="Team members"
           description="Manage active and former members without losing their work history."
-          actions={<CreateMemberDialog brands={[]} />}
+          actions={<CreateMemberDialog />}
         />
         <EmptyState
           title="No team members yet"
           message="Add the first member to create their private CRM login."
           icon={Users}
-          action={<CreateMemberDialog brands={[]} />}
+          action={<CreateMemberDialog />}
         />
       </PageTransition>
     );
@@ -127,7 +127,14 @@ export function CrmTeam() {
               ? "Members assigned to projects where you are the POC."
               : "Your CRM identity and current attendance status."
         }
-        actions={isManager ? <CreateMemberDialog brands={data.brands} /> : undefined}
+        actions={
+          isManager ? (
+            <div className="flex flex-wrap gap-2">
+              <InviteLinkDialog />
+              <CreateMemberDialog />
+            </div>
+          ) : undefined
+        }
       />
 
       {data.team.length === 0 ? (
@@ -135,7 +142,7 @@ export function CrmTeam() {
           title="No team members yet"
           message="Add the first member to create their private CRM login."
           icon={Users}
-          action={isManager ? <CreateMemberDialog brands={data.brands} /> : undefined}
+          action={isManager ? <CreateMemberDialog /> : undefined}
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -198,7 +205,6 @@ export function CrmTeam() {
                   )}
                   {isManager && member.role !== "admin" && member.role !== "superadmin" && (
                     <div className="flex flex-wrap gap-2 pt-2">
-                      <ManageMemberBrandsDialog member={member} brands={data.brands} />
                       <MemberStatusControl member={member} />
                     </div>
                   )}
