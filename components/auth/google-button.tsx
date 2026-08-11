@@ -32,6 +32,7 @@ export function GoogleButton() {
       type="button"
       variant="outline"
       className="w-full"
+      style={{ display: 'none' }}
       onClick={() => void signIn("google", { callbackUrl: "/dashboard" })}
     >
       <GoogleIcon />

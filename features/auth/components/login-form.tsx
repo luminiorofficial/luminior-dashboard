@@ -80,10 +80,10 @@ function LoginFormInner() {
         </Button>
       </form>
 
-      <div className="relative text-center text-xs text-muted-foreground">
+      {/* <div className="relative text-center text-xs text-muted-foreground">
         <span className="relative z-10 bg-card px-2">or</span>
         <div className="absolute inset-x-0 top-1/2 -z-0 h-px bg-border" />
-      </div>
+      </div> */}
 
       <GoogleButton />
     </div>
