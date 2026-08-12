@@ -1,8 +1,8 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
+# ==========================================
+# Dependencies
+# ==========================================
+node_modules/
+.pnp/
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -10,33 +10,105 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
+# Bun
+.bun/
+bun.lockb
 
-# next.js
-/.next/
-/out/
+# ==========================================
+# Next.js
+# ==========================================
+.next/
+out/
+next-env.d.ts
 
-# production
-/build
+# ==========================================
+# Production / Build
+# ==========================================
+build/
+dist/
 
-# misc
-.DS_Store
-*.pem
-
-# env files (never commit real secrets)
-.env*
+# ==========================================
+# Environment variables / Secrets
+# ==========================================
+.env
+.env.*
 !.env.example
 
-# debug
+# ==========================================
+# Testing
+# ==========================================
+coverage/
+.nyc_output/
+
+# ==========================================
+# Debug / Logs
+# ==========================================
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
+pnpm-debug.log*
+bun-debug.log*
+*.log
 
-# vercel
-.vercel
-
-# typescript
+# ==========================================
+# TypeScript
+# ==========================================
 *.tsbuildinfo
-next-env.d.ts
+
+# ==========================================
+# Vercel
+# ==========================================
+.vercel/
+
+# ==========================================
+# Docker
+# ==========================================
+.docker/
+docker-compose.override.yml
+
+# Docker local environment files
+docker-compose.local.yml
+
+# ==========================================
+# IDE / Editors
+# ==========================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+.idea/
+*.iml
+
+# ==========================================
+# OS files
+# ==========================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ==========================================
+# Certificates / Private Keys
+# ==========================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# ==========================================
+# Cache
+# ==========================================
+.cache/
+.tmp/
+.temp/
+.eslintcache
+.stylelintcache
+
+# ==========================================
+# Misc
+# ==========================================
+*.swp
+*.swo
+*.orig
