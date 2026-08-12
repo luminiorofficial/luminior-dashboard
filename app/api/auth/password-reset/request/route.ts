@@ -67,7 +67,14 @@ export async function POST(request: Request) {
     }
 
     const user = await getUserByEmail(email);
-    if (!user) return genericResponse();
+
+console.log("PASSWORD RESET DEBUG:", {
+  requestedEmail: email,
+  userFound: !!user,
+  databaseEmail: user?.email ?? null,
+});
+
+if (!user) return genericResponse();
 
     const otp = generateOtp();
     const resetId = await createPasswordResetOtp({
@@ -84,10 +91,20 @@ export async function POST(request: Request) {
       // Do not log the email, OTP, SMTP credentials, or provider response.
       console.error("Password reset email delivery failed");
     }
-  } catch {
-    // Keep operational failures indistinguishable from an unknown email.
-    console.error("Password reset request failed");
-  }
+  try {
+  await sendPasswordResetOtp(user.email, otp);
+} catch {
+  await invalidatePasswordResetOtp(resetId).catch(() => undefined);
 
-  return genericResponse();
+  console.error("Password reset email delivery failed");
 }
+
+} catch (error) {
+  // Keep operational failures indistinguishable from an unknown email.
+  console.error("Password reset request failed", error);
+}
+
+return genericResponse();
+}
+
+  
