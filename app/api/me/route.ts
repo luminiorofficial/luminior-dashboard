@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { accountEmailSchema } from "@/lib/auth-validation";
 import { AuthError, errorResponse, requireSession } from "@/lib/userSession";
 import { getCompanyById } from "@/lib/db/accounts";
 import { getUserByEmail, getUserById, updateUserProfile } from "@/lib/db/users";
@@ -39,7 +40,7 @@ export async function GET() {
 
 const patchSchema = z.object({
   fullName: z.string().trim().max(200).optional(),
-  email: z.string().trim().toLowerCase().email().max(255).optional(),
+  email: accountEmailSchema.optional(),
 });
 
 /**

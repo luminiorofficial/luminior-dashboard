@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { registerUser } from "@/lib/db/users";
+import { accountEmailSchema, accountPasswordSchema } from "@/lib/auth-validation";
 
 const registerSchema = z.object({
   fullName: z.string().trim().min(1).max(200),
-  email: z.string().trim().toLowerCase().email().max(255),
-  password: z.string().min(8).max(72),
+  email: accountEmailSchema,
+  password: accountPasswordSchema,
   // The code from a company's "?ref=" invite link. Omitted only for the very
   // first account ever created (registerUser bootstraps that one to superadmin).
   ref: z.string().trim().max(24).optional(),

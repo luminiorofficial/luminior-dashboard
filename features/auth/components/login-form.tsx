@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,13 @@ function LoginFormInner() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const passwordReset = params.get("passwordReset") === "success";
+
+  useEffect(() => {
+    if (passwordReset) {
+      toast.success("Password updated successfully. Please login with your new password.");
+    }
+  }, [passwordReset]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -41,6 +48,11 @@ function LoginFormInner() {
   return (
     <div className="space-y-5">
       <form onSubmit={handleSubmit} className="space-y-4">
+        {passwordReset ? (
+          <div className="rounded-lg border border-success/20 bg-success/5 px-3 py-2 text-sm text-success">
+            Password updated successfully. Please login with your new password.
+          </div>
+        ) : null}
         {error ? (
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
             {error}

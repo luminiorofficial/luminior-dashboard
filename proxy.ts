@@ -10,7 +10,7 @@ import authConfig from "@/auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-const AUTH_PAGES = ["/sign-in", "/forgot-password"];
+const AUTH_PAGES = ["/sign-in", "/forgot-password", "/reset-password"];
 
 // /sign-up is deliberately not a public auth page — the app belongs to one
 // company and new accounts are only created through an admin's invite link

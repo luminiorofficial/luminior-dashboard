@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { accountEmailSchema, accountPasswordSchema } from "@/lib/auth-validation";
 import { AuthError, errorResponse, requireSession } from "@/lib/userSession";
 import {
   createUser,
@@ -38,8 +39,8 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("create_member"),
     fullName: z.string().trim().min(2).max(200),
-    email: z.string().trim().toLowerCase().email().max(255),
-    password: z.string().min(8).max(72),
+    email: accountEmailSchema,
+    password: accountPasswordSchema,
     jobTitle: nullableText(120),
     department: nullableText(120),
   }),
